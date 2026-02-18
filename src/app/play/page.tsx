@@ -1592,13 +1592,21 @@ function PlayPageClient() {
                 onSetIntro={(time) => {
                   _handleSkipConfigChange({
                     ...skipConfig,
+                    enable: true,
                     intro_time: time,
                   });
                 }}
                 onSetOutro={(time) => {
                   _handleSkipConfigChange({
                     ...skipConfig,
+                    enable: true,
                     outro_time: time,
+                  });
+                }}
+                onSkipEnableChange={(enabled) => {
+                  _handleSkipConfigChange({
+                    ...skipConfig,
+                    enable: enabled,
                   });
                 }}
                 onSkipIntro={() => {

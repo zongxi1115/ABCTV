@@ -16,6 +16,8 @@ interface SettingsMenuProps {
   onClose: () => void;
   playbackRate: number;
   onPlaybackRateChange: (rate: number) => void;
+  skipEnabled: boolean;
+  onSkipEnabledChange: (enabled: boolean) => void;
   introTime?: number;
   outroTime?: number;
   currentTime: number;
@@ -40,6 +42,8 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
   onClose,
   playbackRate,
   onPlaybackRateChange,
+  skipEnabled,
+  onSkipEnabledChange,
   introTime,
   outroTime,
   currentTime,
@@ -50,7 +54,6 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
 }) => {
   const [currentView, setCurrentView] = useState<'main' | 'speed'>('main');
   const [adEnabled, setAdEnabled] = useState(false);
-  const [skipEnabled, setSkipEnabled] = useState(true);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close when clicking outside
@@ -86,43 +89,74 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
     rightContent,
     onClick,
     danger = false,
+    iconAnimation = 'none',
   }: {
     icon: React.ReactNode;
     label: string;
     rightContent?: React.ReactNode;
     onClick?: () => void;
     danger?: boolean;
-  }) => (
-    <motion.div
-      whileHover={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-colors ${
-        danger ? 'text-red-400 hover:text-red-300' : 'text-white/90'
-      }`}
-    >
-      <div className='flex items-center gap-3'>
-        <div className='text-white/80'>{icon}</div>
-        <span className='text-sm font-medium'>{label}</span>
-      </div>
-      <div className='text-white/50 text-xs flex items-center gap-2'>
-        {rightContent}
-      </div>
-    </motion.div>
-  );
+    iconAnimation?:
+      | 'none'
+      | 'speed'
+      | 'ad'
+      | 'skip'
+      | 'delete'
+      | 'intro'
+      | 'outro';
+  }) =>
+    (() => {
+      const iconHoverClass =
+        iconAnimation === 'speed'
+          ? 'group-hover/menuitem:scale-[1.08] group-hover/menuitem:opacity-95'
+          : iconAnimation === 'skip'
+          ? 'group-hover/menuitem:scale-[1.06]'
+          : iconAnimation === 'ad'
+          ? 'group-hover/menuitem:scale-105 group-hover/menuitem:opacity-90'
+          : iconAnimation === 'delete'
+          ? 'group-hover/menuitem:scale-105'
+          : iconAnimation === 'intro'
+          ? 'group-hover/menuitem:scale-105'
+          : iconAnimation === 'outro'
+          ? 'group-hover/menuitem:scale-105'
+          : '';
+
+      return (
+        <motion.div
+          whileHover={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onClick}
+          className={`group/menuitem flex items-center justify-between p-3 rounded-xl cursor-pointer transition-colors ${
+            danger ? 'text-red-400 hover:text-red-300' : 'text-white/90'
+          }`}
+        >
+          <div className='flex items-center gap-3'>
+            <div
+              className={`text-white/80 transition-transform duration-200 ease-out ${iconHoverClass}`}
+            >
+              {icon}
+            </div>
+            <span className='text-sm font-medium'>{label}</span>
+          </div>
+          <div className='text-white/50 text-xs flex items-center gap-2'>
+            {rightContent}
+          </div>
+        </motion.div>
+      );
+    })();
 
   // Toggle Switch Component
   const Toggle = ({ checked }: { checked: boolean }) => (
     <div
-      className={`w-9 h-5 rounded-full relative transition-colors duration-300 ${
+      className={`w-11 h-6 p-0.5 rounded-full relative transition-colors duration-300 ${
         checked ? 'bg-green-500' : 'bg-white/20'
       }`}
     >
       <motion.div
         initial={false}
-        animate={{ x: checked ? 16 : 2 }}
-        className='absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm'
-        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+        animate={{ x: checked ? 20 : 0 }}
+        className='w-5 h-5 bg-white rounded-full shadow-md'
+        transition={{ type: 'spring', stiffness: 420, damping: 30 }}
       />
     </div>
   );
@@ -152,6 +186,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                   <MenuItem
                     icon={<SpeedIcon width={20} height={20} />}
                     label='播放速度'
+                    iconAnimation='speed'
                     rightContent={
                       <>
                         <span className='text-white/70'>
@@ -166,6 +201,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                   <MenuItem
                     icon={<AdIcon width={20} height={20} enabled={adEnabled} />}
                     label='去广告'
+                    iconAnimation='ad'
                     rightContent={
                       <span className='text-white/50 text-xs mr-1'>
                         {adEnabled ? '已开启' : '已关闭'}
@@ -177,8 +213,9 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                   <MenuItem
                     icon={<SkipIcon width={20} height={20} />}
                     label='跳过片头片尾'
+                    iconAnimation='skip'
                     rightContent={<Toggle checked={skipEnabled} />}
-                    onClick={() => setSkipEnabled(!skipEnabled)}
+                    onClick={() => onSkipEnabledChange(!skipEnabled)}
                   />
 
                   <div className='h-px bg-white/10 mx-2 my-1' />
@@ -186,19 +223,15 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                   <MenuItem
                     icon={<DeleteIcon width={20} height={20} />}
                     label='删除跳过配置'
+                    iconAnimation='delete'
                     danger={true}
                     onClick={onClearConfig}
                   />
 
                   <MenuItem
-                    icon={
-                      <MarkerIcon
-                        width={20}
-                        height={20}
-                        className='rotate-90'
-                      />
-                    }
+                    icon={<MarkerIcon width={20} height={20} />}
                     label='设置片头'
+                    iconAnimation='intro'
                     rightContent={
                       <span className='text-white/30 hover:text-white/80 transition-colors'>
                         {introTime
@@ -210,14 +243,9 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                   />
 
                   <MenuItem
-                    icon={
-                      <MarkerIcon
-                        width={20}
-                        height={20}
-                        className='-rotate-90'
-                      />
-                    }
+                    icon={<MarkerIcon width={20} height={20} />}
                     label='设置片尾'
+                    iconAnimation='outro'
                     rightContent={
                       <span className='text-white/30 hover:text-white/80 transition-colors'>
                         {outroTime
@@ -239,6 +267,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                 >
                   <div className='flex items-center gap-2 p-3 border-b border-white/10 mb-2'>
                     <button
+                      aria-label='返回设置菜单'
                       onClick={() => setCurrentView('main')}
                       className='hover:bg-white/10 p-1 rounded-full transition-colors'
                     >
@@ -270,8 +299,31 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                           {speed === 1 ? '正常' : `${speed}x`}
                         </span>
                         {playbackRate === speed && (
-                          <motion.div layoutId='check'>
-                            <div className='w-2 h-2 bg-green-500 rounded-full' />
+                          <motion.div
+                            layoutId='check'
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{
+                              type: 'spring',
+                              stiffness: 400,
+                              damping: 25,
+                            }}
+                          >
+                            <svg
+                              width='16'
+                              height='16'
+                              viewBox='0 0 16 16'
+                              fill='none'
+                              xmlns='http://www.w3.org/2000/svg'
+                            >
+                              <path
+                                d='M3 8L6.5 11.5L13 5'
+                                stroke='#22c55e'
+                                strokeWidth='2'
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                              />
+                            </svg>
                           </motion.div>
                         )}
                       </motion.button>

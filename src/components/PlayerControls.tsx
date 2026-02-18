@@ -29,6 +29,8 @@ interface PlayerControlsProps {
   onToggleWebFullscreen: () => void;
   onTogglePip: () => void;
   onPlaybackRateChange: (rate: number) => void;
+  skipEnabled: boolean;
+  onSkipEnabledChange: (enabled: boolean) => void;
   onSetIntro: (time: number) => void;
   onSetOutro: (time: number) => void;
   onClearConfig: () => void;
@@ -136,6 +138,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   onToggleWebFullscreen,
   onTogglePip,
   onPlaybackRateChange,
+  skipEnabled,
+  onSkipEnabledChange,
   onSetIntro,
   onSetOutro,
   onClearConfig,
@@ -159,6 +163,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             onClose={() => setShowSettings(false)}
             playbackRate={state.playbackRate}
             onPlaybackRateChange={onPlaybackRateChange}
+            skipEnabled={skipEnabled}
+            onSkipEnabledChange={onSkipEnabledChange}
             introTime={state.introTime}
             outroTime={state.outroTime}
             currentTime={state.currentTime}
@@ -221,6 +227,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                 {onNextEpisode && (
                   <WithTooltip text='下一集'>
                     <motion.button
+                      aria-label='播放下一集'
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={onNextEpisode}
@@ -233,6 +240,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
                 <div className='group/vol flex items-center gap-2 relative ml-1'>
                   <button
+                    aria-label='切换静音'
                     onClick={onToggleMute}
                     className='text-white/80 hover:text-white transition-colors'
                   >
@@ -263,12 +271,16 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               <div className='flex items-center gap-3'>
                 <WithTooltip text='设置'>
                   <motion.button
+                    aria-label='播放器设置'
                     id='settings-btn'
-                    animate={{ rotate: showSettings ? 90 : 0 }}
-                    transition={{ duration: 0.3 }}
+                    animate={{
+                      scale: showSettings ? 1.15 : 1,
+                      opacity: showSettings ? 1 : 0.8,
+                    }}
+                    transition={{ duration: 0.2 }}
                     onClick={() => setShowSettings(!showSettings)}
-                    className={`text-white/80 hover:text-white transition-colors ${
-                      showSettings ? 'text-white' : ''
+                    className={`hover:opacity-100 transition-opacity ${
+                      showSettings ? 'text-green-400' : 'text-white'
                     }`}
                   >
                     <SettingsIcon className='w-5 h-5' />

@@ -22,6 +22,7 @@ interface VideoPlayerProps {
   onPlayProgress?: (time: number, duration: number) => void;
   onSetIntro?: (time: number) => void;
   onSetOutro?: (time: number) => void;
+  onSkipEnableChange?: (enabled: boolean) => void;
   onSkipIntro?: () => void;
   onSkipOutro?: () => void;
 }
@@ -37,6 +38,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onPlayProgress,
   onSetIntro,
   onSetOutro,
+  onSkipEnableChange,
   onSkipIntro,
   onSkipOutro,
 }) => {
@@ -48,18 +50,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const speedRef = useRef(1);
   const keyHoldTimeoutRef = useRef<number | null>(null);
   const isKeyDownRef = useRef(false);
-  const lastSkipCheckRef = useRef<number>(0);
   const [skipNotification, setSkipNotification] = useState<{
     type: 'intro' | 'outro';
-    time: number;
   } | null>(null);
   const skipNotificationTimeoutRef = useRef<number | null>(null);
+  // 每集片头/片尾是否已触发过跳过（换集时需要重置）
+  const hasSkippedIntroRef = useRef<boolean>(false);
+  const hasSkippedOutroRef = useRef<boolean>(false);
 
   // 下一集提示
   const [nextEpisodeNotification, setNextEpisodeNotification] =
     useState<boolean>(false);
   const nextEpisodeNotificationTimeoutRef = useRef<number | null>(null);
   const hasShownNextEpisodeNotificationRef = useRef<boolean>(false);
+  const shouldAutoPlayNextRef = useRef<boolean>(false);
 
   const [state, setState] = useState<VideoState>({
     playing: false,
@@ -89,6 +93,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       playing: false,
     }));
     hasShownNextEpisodeNotificationRef.current = false;
+    hasSkippedIntroRef.current = false;
+    hasSkippedOutroRef.current = false;
 
     // 先重置 video，避免切换源时残留
     video.pause();
@@ -99,6 +105,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       // video.duration 在 HLS 中可能是 Infinity（直播）或正常值（点播）
       const dur = isFinite(video.duration) ? video.duration : 0;
       setState((prev) => ({ ...prev, duration: dur, loading: false }));
+    };
+
+    const tryAutoPlayNextEpisode = () => {
+      if (!shouldAutoPlayNextRef.current) return;
+      video
+        .play()
+        .then(() => {
+          shouldAutoPlayNextRef.current = false;
+        })
+        .catch(() => {
+          // autoplay may be blocked by browser policy; keep UI state stable
+        });
     };
 
     // 时长可能在 durationchange 事件中才稳定（HLS 分片流）
@@ -129,6 +147,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           // manifest 解析完毕后，video.duration 才可用
           const dur = isFinite(video.duration) ? video.duration : 0;
           setState((prev) => ({ ...prev, loading: false, duration: dur }));
+          tryAutoPlayNextEpisode();
         });
         hls.on(Hls.Events.LEVEL_LOADED, (_event, data) => {
           // VOD 流在 level 加载后才有准确时长
@@ -153,16 +172,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           }
         });
         video.addEventListener('loadedmetadata', handleLoadedMetadata);
+        video.addEventListener('canplay', tryAutoPlayNextEpisode);
         video.addEventListener('durationchange', handleDurationChange);
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         // Safari 原生支持 HLS
         video.src = src;
         video.addEventListener('loadedmetadata', handleLoadedMetadata);
+        video.addEventListener('canplay', tryAutoPlayNextEpisode);
         video.addEventListener('durationchange', handleDurationChange);
       }
     } else {
       video.src = src;
       video.addEventListener('loadedmetadata', handleLoadedMetadata);
+      video.addEventListener('canplay', tryAutoPlayNextEpisode);
       video.addEventListener('durationchange', handleDurationChange);
     }
 
@@ -171,6 +193,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         hls.destroy();
       }
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('canplay', tryAutoPlayNextEpisode);
       video.removeEventListener('durationchange', handleDurationChange);
     };
   }, [src]);
@@ -204,24 +227,29 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
 
       // 片头片尾跳过逻辑
-      if (skipConfig?.enable) {
+      const shouldHandleSkip = Boolean(
+        skipConfig &&
+          (skipConfig.enable ||
+            skipConfig.intro_time > 0 ||
+            skipConfig.outro_time < 0)
+      );
+      if (shouldHandleSkip) {
         const currentTime = video.currentTime;
         const duration = video.duration;
-        const now = Date.now();
+        const introTime = skipConfig?.intro_time ?? 0;
+        const outroTime = skipConfig?.outro_time ?? 0;
 
-        // 限制跳过检查频率为1.5秒一次
-        if (now - lastSkipCheckRef.current < 1500) return;
-        lastSkipCheckRef.current = now;
-
-        // 跳过片头
+        // 跳过片头：集数开始后3秒内且已设置片头时间点
         if (
-          skipConfig.intro_time > 0 &&
-          currentTime < skipConfig.intro_time &&
-          currentTime > 0
+          introTime > 0 &&
+          !hasSkippedIntroRef.current &&
+          currentTime >= 0 &&
+          currentTime <= 3
         ) {
-          video.currentTime = skipConfig.intro_time;
+          hasSkippedIntroRef.current = true;
+          video.currentTime = introTime;
           onSkipIntro?.();
-          setSkipNotification({ type: 'intro', time: skipConfig.intro_time });
+          setSkipNotification({ type: 'intro' });
           if (skipNotificationTimeoutRef.current)
             clearTimeout(skipNotificationTimeoutRef.current);
           skipNotificationTimeoutRef.current = window.setTimeout(() => {
@@ -229,19 +257,26 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           }, 3000);
         }
 
-        // 跳过片尾
+        // 跳过片尾：结束前1秒且已设置片尾时间点 → 直接下一集
         if (
-          skipConfig.outro_time < 0 &&
+          outroTime < 0 &&
+          !hasSkippedOutroRef.current &&
           duration > 0 &&
-          currentTime > duration + skipConfig.outro_time
+          currentTime >= duration + outroTime - 1
         ) {
-          onSkipOutro?.();
-          setSkipNotification({ type: 'outro', time: -skipConfig.outro_time });
+          hasSkippedOutroRef.current = true;
+          shouldAutoPlayNextRef.current = true;
+          setSkipNotification({ type: 'outro' });
           if (skipNotificationTimeoutRef.current)
             clearTimeout(skipNotificationTimeoutRef.current);
           skipNotificationTimeoutRef.current = window.setTimeout(() => {
             setSkipNotification(null);
           }, 3000);
+          onSkipOutro?.();
+          // 延迟一点再切集，让通知先显示
+          window.setTimeout(() => {
+            onNextEpisode?.();
+          }, 300);
         }
       }
     };
@@ -272,6 +307,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       ) {
         // 显示下一集提示弹窗
         setNextEpisodeNotification(true);
+        shouldAutoPlayNextRef.current = true;
         if (nextEpisodeNotificationTimeoutRef.current) {
           clearTimeout(nextEpisodeNotificationTimeoutRef.current);
         }
@@ -326,6 +362,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
     };
   }, []);
+
+  // 换集时重置片头/片尾跳过标志
+  useEffect(() => {
+    hasSkippedIntroRef.current = false;
+    hasSkippedOutroRef.current = false;
+    setSkipNotification(null);
+  }, [currentEpisode]);
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -522,6 +565,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     onSetOutro?.(time);
   };
 
+  const handleSkipEnabledChange = (enabled: boolean) => {
+    onSkipEnableChange?.(enabled);
+  };
+
   const handleClearConfig = () => {
     setState((prev) => ({
       ...prev,
@@ -542,6 +589,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () =>
       document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
+
+  useEffect(() => {
+    setState((prev) => ({
+      ...prev,
+      introTime:
+        skipConfig && skipConfig.intro_time > 0
+          ? skipConfig.intro_time
+          : undefined,
+      outroTime:
+        skipConfig && skipConfig.outro_time < 0
+          ? skipConfig.outro_time
+          : undefined,
+    }));
+  }, [skipConfig]);
 
   return (
     <div
@@ -572,10 +633,28 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.3 }}
-            className='absolute bottom-24 left-1/2 -translate-x-1/2 z-40 pointer-events-none'
+            className='absolute bottom-24 left-1/2 -translate-x-1/2 z-40'
           >
-            <div className='bg-green-500/90 backdrop-blur-md text-white px-4 py-2 rounded-lg whitespace-nowrap text-sm font-medium shadow-lg'>
-              {skipNotification.type === 'intro' ? '已跳过片头' : '已跳过片尾'}
+            <div className='flex items-center gap-3 bg-black/50 backdrop-blur-xl text-white px-5 py-2.5 rounded-2xl whitespace-nowrap text-sm font-medium shadow-2xl border border-white/15'>
+              <span>
+                {skipNotification.type === 'intro'
+                  ? '已为您跳过片头'
+                  : '已为您跳过片尾'}
+              </span>
+              {skipNotification.type === 'intro' && (
+                <button
+                  className='text-white/50 hover:text-white/80 underline underline-offset-2 transition-colors text-xs cursor-pointer pointer-events-auto'
+                  onClick={() => {
+                    // 撤销片头跳过，回到开头
+                    if (videoRef.current) {
+                      videoRef.current.currentTime = 0;
+                    }
+                    setSkipNotification(null);
+                  }}
+                >
+                  不跳转
+                </button>
+              )}
             </div>
           </motion.div>
         )}
@@ -585,18 +664,32 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       <AnimatePresence>
         {nextEpisodeNotification && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{
-              duration: 0.4,
+              duration: 0.35,
               type: 'spring',
-              stiffness: 300,
-              damping: 25,
+              stiffness: 320,
+              damping: 28,
             }}
             className='absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 z-40 pointer-events-none'
           >
-            <div className='bg-gradient-to-r from-blue-500/90 to-purple-500/90 backdrop-blur-md text-white px-6 py-3 rounded-xl whitespace-nowrap text-base font-semibold shadow-2xl border border-white/20'>
+            <div className='flex items-center gap-3 bg-black/55 backdrop-blur-2xl text-white px-7 py-3.5 rounded-2xl whitespace-nowrap text-base font-semibold shadow-2xl border border-white/15'>
+              <motion.div
+                animate={{ x: [0, 4, 0] }}
+                transition={{ repeat: Infinity, duration: 0.9 }}
+              >
+                <svg
+                  width='20'
+                  height='20'
+                  viewBox='0 0 24 24'
+                  fill='currentColor'
+                  className='text-green-400'
+                >
+                  <path d='M6 18l8.5-6L6 6v12zm2-8.14L11.03 12 8 14.14V9.86zM16 6h2v12h-2z' />
+                </svg>
+              </motion.div>
               即将播放下一集...
             </div>
           </motion.div>
@@ -632,9 +725,44 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className='absolute inset-0 flex items-center justify-center pointer-events-none z-0'
+            className='absolute inset-0 flex flex-col items-center justify-center gap-4 pointer-events-none z-20 bg-black/30 backdrop-blur-[1px]'
           >
-            <div className='w-12 h-12 border-4 border-white/20 border-t-green-500 rounded-full animate-spin' />
+            <div className='relative w-16 h-16'>
+              <motion.div
+                className='absolute inset-0 rounded-full border border-white/30'
+                animate={{ scale: [1, 1.25, 1], opacity: [0.65, 0.2, 0.65] }}
+                transition={{
+                  duration: 1.6,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+              />
+              <motion.div
+                className='absolute inset-2 rounded-full border-2 border-green-400/90 border-t-transparent'
+                animate={{ rotate: 360 }}
+                transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }}
+              />
+              <motion.div
+                className='absolute inset-5 rounded-full bg-green-400/80'
+                animate={{ scale: [0.9, 1.15, 0.9], opacity: [0.7, 1, 0.7] }}
+                transition={{
+                  duration: 1.2,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+              />
+            </div>
+            <motion.p
+              className='text-sm text-white/90 font-medium tracking-wide'
+              animate={{ opacity: [0.55, 1, 0.55] }}
+              transition={{
+                duration: 1.2,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            >
+              视频加载中...
+            </motion.p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -675,6 +803,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onToggleWebFullscreen={toggleWebFullscreen}
         onTogglePip={togglePip}
         onPlaybackRateChange={changePlaybackRate}
+        skipEnabled={Boolean(skipConfig?.enable)}
+        onSkipEnabledChange={handleSkipEnabledChange}
         onSetIntro={handleSetIntro}
         onSetOutro={handleSetOutro}
         onClearConfig={handleClearConfig}

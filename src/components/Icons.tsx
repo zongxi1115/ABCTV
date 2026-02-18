@@ -1,5 +1,5 @@
 import { motion, SVGMotionProps } from 'framer-motion';
-import React, { useState } from 'react';
+import React from 'react';
 
 // Base props
 const iconProps = {
@@ -150,44 +150,27 @@ export const ArrowLeftIcon: React.FC<SVGMotionProps<SVGSVGElement>> = (
 
 export const SpeedIcon: React.FC<SVGMotionProps<SVGSVGElement>> = (props) => {
   return (
-    <motion.svg
-      {...strokeIconProps}
-      {...props}
-      whileHover={{ rotate: 180 }}
-      transition={{ type: 'spring', stiffness: 200, damping: 10 }}
-    >
+    <motion.svg {...strokeIconProps} {...props}>
       <circle cx='12' cy='12' r='10' />
       <polygon
         points='10 8 16 12 10 16 10 8'
         fill='currentColor'
         stroke='none'
       />
+      <path d='M6 12h2' opacity='0.45' />
     </motion.svg>
   );
 };
 
 export const SkipIcon: React.FC<SVGMotionProps<SVGSVGElement>> = (props) => {
   return (
-    <motion.svg {...strokeIconProps} {...props} whileHover='hover'>
+    <motion.svg {...strokeIconProps} {...props}>
       <path d='M4 12v6h2v-6h-2zm4 0v6h2v-6h-2z' fill='none' stroke='none' />
-      {/* Brackets jumping */}
-      <motion.path
-        variants={{ hover: { x: -2 } }}
-        d='M5 17h14'
-        strokeOpacity='0.3'
-      />
-      <motion.path
-        variants={{ hover: { x: 2 } }}
-        d='M5 7h14'
-        strokeOpacity='0.3'
-      />
+      <path d='M5 17h14' strokeOpacity='0.3' />
+      <path d='M5 7h14' strokeOpacity='0.3' />
 
       <path d='M7 12h10' />
-      <motion.path
-        variants={{ hover: { x: 3 } }}
-        transition={{ repeat: Infinity, repeatType: 'reverse', duration: 0.5 }}
-        d='M17 12l-3-3m3 3l-3 3'
-      />
+      <path d='M17 12l-3-3m3 3l-3 3' />
       <rect
         x='4'
         y='4'
@@ -209,11 +192,7 @@ export const SkipIcon: React.FC<SVGMotionProps<SVGSVGElement>> = (props) => {
 };
 
 export const MarkerIcon: React.FC<SVGMotionProps<SVGSVGElement>> = (props) => (
-  <motion.svg
-    {...strokeIconProps}
-    {...props}
-    whileHover={{ rotate: [0, -10, 0], originX: '12px', originY: '21px' }}
-  >
+  <motion.svg {...strokeIconProps} {...props}>
     <path d='M21 21H3' />
     <path d='M12 3v14' />
     <path d='M12 17l-4-4h8l-4 4z' fill='currentColor' stroke='none' />
@@ -221,22 +200,12 @@ export const MarkerIcon: React.FC<SVGMotionProps<SVGSVGElement>> = (props) => (
 );
 
 export const DeleteIcon: React.FC<SVGMotionProps<SVGSVGElement>> = (props) => {
-  const [isHovered, setHovered] = useState(false);
   return (
-    <motion.svg
-      {...strokeIconProps}
-      {...props}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Lid */}
-      <motion.g
-        animate={{ rotate: isHovered ? -20 : 0, y: isHovered ? -2 : 0 }}
-        style={{ originX: '19px', originY: '6px' }}
-      >
+    <motion.svg {...strokeIconProps} {...props}>
+      <g>
         <path d='M3 6h18' />
         <path d='M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2' />
-      </motion.g>
+      </g>
       {/* Bin */}
       <path d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6' />
       <line x1='10' y1='11' x2='10' y2='17' />
