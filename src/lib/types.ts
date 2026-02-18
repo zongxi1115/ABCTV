@@ -117,3 +117,19 @@ export interface SkipConfig {
   intro_time: number; // 片头时间（秒）
   outro_time: number; // 片尾时间（秒）
 }
+
+// 视频播放器状态
+export interface VideoState {
+  playing: boolean;
+  muted: boolean;
+  volume: number;
+  currentTime: number;
+  duration: number;
+  buffered: number;
+  fullscreen: boolean;
+  webFullscreen: boolean;
+  loading: boolean;
+  playbackRate: number;
+  introTime?: number;
+  outroTime?: number;
+}
