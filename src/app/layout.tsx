@@ -50,6 +50,7 @@ export default async function RootLayout({
   let enableRegister = process.env.NEXT_PUBLIC_ENABLE_REGISTER === 'true';
   let imageProxy = process.env.NEXT_PUBLIC_IMAGE_PROXY || '';
   let doubanProxy = process.env.NEXT_PUBLIC_DOUBAN_PROXY || '';
+  const doubanVideoProxy = process.env.DOUBAN_VIDEO_PROXY || '';
   let disableYellowFilter =
     process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true';
   let customCategories =
@@ -84,6 +85,7 @@ export default async function RootLayout({
     ENABLE_REGISTER: enableRegister,
     IMAGE_PROXY: imageProxy,
     DOUBAN_PROXY: doubanProxy,
+    DOUBAN_VIDEO_PROXY: doubanVideoProxy,
     DISABLE_YELLOW_FILTER: disableYellowFilter,
     CUSTOM_CATEGORIES: customCategories,
   };

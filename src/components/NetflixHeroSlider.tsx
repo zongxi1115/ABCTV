@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { DoubanSubjectBrief, getDoubanSubjectBrief } from '@/lib/douban.client';
+import { processImageUrl } from '@/lib/utils';
 
 type SliderItemInput = {
   doubanId: string;
@@ -227,6 +228,16 @@ export default function NetflixHeroSlider({
     ? currentMovie.pubdate[0].split('(')[0]
     : '';
 
+  const doubanVideoProxy =
+    typeof window !== 'undefined'
+      ? String((window as any).RUNTIME_CONFIG?.DOUBAN_VIDEO_PROXY || '').trim()
+      : '';
+
+  const canPlayTrailer = Boolean(doubanVideoProxy);
+  const coverSrc = currentMovie.cover_url
+    ? processImageUrl(currentMovie.cover_url)
+    : '';
+
   return (
     <div
       className='relative w-full h-screen overflow-hidden bg-black text-white group/container'
@@ -243,10 +254,10 @@ export default function NetflixHeroSlider({
           transition={{ duration: 1 }}
           className='absolute inset-0 w-full h-full'
         >
-          {currentMovie.video_url && !forceCover ? (
+          {canPlayTrailer && currentMovie.video_url && !forceCover ? (
             <video
               ref={videoRef}
-              src={`/api/video-proxy?url=${encodeURIComponent(
+              src={`${doubanVideoProxy}${encodeURIComponent(
                 currentMovie.video_url
               )}`}
               className='w-full h-full object-cover'
@@ -255,7 +266,7 @@ export default function NetflixHeroSlider({
               muted={isMuted}
               playsInline
               preload='metadata'
-              poster={currentMovie.cover_url || undefined}
+              poster={coverSrc || undefined}
               onError={() => {
                 // 常见：豆瓣视频 CDN 防盗链/Range 失败，降级到封面
                 setForceCover(true);
@@ -263,7 +274,7 @@ export default function NetflixHeroSlider({
             />
           ) : currentMovie.cover_url ? (
             <Image
-              src={currentMovie.cover_url}
+              src={coverSrc || currentMovie.cover_url}
               alt={currentMovie.title}
               fill
               priority
