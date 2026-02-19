@@ -30,7 +30,7 @@ import {
   saveSkipConfig,
   subscribeToDataUpdates,
 } from '@/lib/db.client';
-import { SearchResult } from '@/lib/types';
+import { DanmuItem, SearchResult } from '@/lib/types';
 import { getVideoResolutionFromM3u8, processImageUrl } from '@/lib/utils';
 
 import EpisodeSelector from '@/components/EpisodeSelector';
@@ -254,6 +254,10 @@ function PlayPageClient() {
 
   // 视频播放地址
   const [videoUrl, setVideoUrl] = useState('');
+
+  // 弹幕
+  const [danmu, setDanmu] = useState<DanmuItem[]>([]);
+  const danmuFetchKeyRef = useRef<string>('');
 
   // 总集数
   const totalEpisodes = detail?.episodes?.length || 0;
@@ -709,6 +713,56 @@ function PlayPageClient() {
   useEffect(() => {
     updateVideoUrl(detail, currentEpisodeIndex);
   }, [detail, currentEpisodeIndex]);
+
+  // 获取弹幕：根据标题搜索 episodeId，再拉取弹幕
+  useEffect(() => {
+    const anime = (searchTitle || videoTitle || '').trim();
+    const episode = currentEpisodeIndex + 1;
+    if (!anime || !detail || !videoUrl) {
+      setDanmu([]);
+      return;
+    }
+
+    const key = `${anime}__${episode}__${videoYear || ''}`;
+    danmuFetchKeyRef.current = key;
+
+    const controller = new AbortController();
+    const load = async () => {
+      try {
+        const params = new URLSearchParams({
+          anime,
+          episode: String(episode),
+        });
+        if (videoYear) params.set('year', videoYear);
+
+        const res = await fetch(`/api/danmu?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          setDanmu([]);
+          return;
+        }
+        const json = await res.json();
+        if (danmuFetchKeyRef.current !== key) return;
+        setDanmu(
+          Array.isArray(json?.comments) ? (json.comments as DanmuItem[]) : []
+        );
+      } catch (e) {
+        if ((e as any)?.name === 'AbortError') return;
+        setDanmu([]);
+      }
+    };
+
+    load();
+    return () => controller.abort();
+  }, [
+    currentEpisodeIndex,
+    detail,
+    searchTitle,
+    videoTitle,
+    videoUrl,
+    videoYear,
+  ]);
 
   // 进入页面时直接获取全部源信息
   useEffect(() => {
@@ -1569,6 +1623,7 @@ function PlayPageClient() {
                 title={detail?.title || 'Video'}
                 currentEpisode={currentEpisodeIndex}
                 totalEpisodes={totalEpisodes}
+                danmu={danmu}
                 skipConfig={skipConfig}
                 onNextEpisode={handleNextEpisode}
                 onPlayProgress={(time, duration) => {

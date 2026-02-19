@@ -4,6 +4,55 @@ import { getStorage } from '@/lib/db';
 
 import { AdminConfig } from './admin.types';
 import runtimeConfig from './runtime';
+import { IStorage } from './types';
+
+async function ensureEnvAdminUser(
+  storage: IStorage | null,
+  adminConfig: AdminConfig
+): Promise<void> {
+  const adminUsername = (process.env.ADMIN_USERNAME || '').trim();
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  const ownerUsername = (process.env.USERNAME || '').trim();
+
+  if (!adminUsername || !adminPassword) return;
+  if (adminUsername === ownerUsername) return;
+
+  if (!adminConfig.UserConfig) {
+    (adminConfig as any).UserConfig = { AllowRegister: false, Users: [] };
+  }
+  if (!Array.isArray(adminConfig.UserConfig.Users)) {
+    (adminConfig.UserConfig as any).Users = [];
+  }
+
+  const existing = adminConfig.UserConfig.Users.find(
+    (u) => u.username === adminUsername
+  );
+  if (existing) {
+    if (existing.role !== 'owner') existing.role = 'admin';
+  } else {
+    adminConfig.UserConfig.Users.unshift({
+      username: adminUsername,
+      role: 'admin',
+    });
+  }
+
+  // 确保账号在存储中存在（仅首次创建；不强制覆盖密码）
+  if (!storage) return;
+  const hasCheck = typeof (storage as any).checkUserExist === 'function';
+  const hasRegister = typeof (storage as any).registerUser === 'function';
+  if (!hasRegister) return;
+
+  try {
+    const exists = hasCheck
+      ? await (storage as any).checkUserExist(adminUsername)
+      : false;
+    if (!exists) {
+      await (storage as any).registerUser(adminUsername, adminPassword);
+    }
+  } catch (e) {
+    console.error('创建管理员账号失败:', e);
+  }
+}
 
 export interface ApiSite {
   key: string;
@@ -176,6 +225,8 @@ async function initConfig() {
             role: 'owner',
           });
         }
+
+        await ensureEnvAdminUser(storage as any, adminConfig);
       } else {
         // 数据库中没有配置，创建新的管理员配置
         let allUsers = userNames.map((uname) => ({
@@ -224,6 +275,8 @@ async function initConfig() {
             disabled: false,
           })),
         };
+
+        await ensureEnvAdminUser(storage as any, adminConfig);
       }
 
       // 写回数据库（更新/创建）
@@ -377,6 +430,8 @@ export async function getConfig(): Promise<AdminConfig> {
         role: 'owner',
       });
     }
+
+    await ensureEnvAdminUser(storage as any, adminConfig);
     cachedConfig = adminConfig;
   } else {
     // DB 无配置，执行一次初始化
@@ -426,6 +481,30 @@ export async function resetConfig() {
       username: ownerUser,
       role: 'owner',
     });
+  }
+
+  const adminUsername = (process.env.ADMIN_USERNAME || '').trim();
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (adminUsername && adminPassword && adminUsername !== ownerUser) {
+    allUsers = allUsers.filter((u) => u.username !== adminUsername);
+    allUsers.unshift({
+      username: adminUsername,
+      role: 'admin',
+    });
+
+    if (storage && typeof (storage as any).registerUser === 'function') {
+      try {
+        const exists =
+          typeof (storage as any).checkUserExist === 'function'
+            ? await (storage as any).checkUserExist(adminUsername)
+            : false;
+        if (!exists) {
+          await (storage as any).registerUser(adminUsername, adminPassword);
+        }
+      } catch (e) {
+        console.error('创建管理员账号失败:', e);
+      }
+    }
   }
   const adminConfig = {
     SiteConfig: {

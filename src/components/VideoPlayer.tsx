@@ -2,8 +2,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Hls from 'hls.js';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import { VideoState } from '@/lib/types';
+import { DanmuConfig, DanmuItem, VideoState } from '@/lib/types';
 
+import { DanmuLayer } from './DanmuLayer';
 import { FastForwardOverlayIcon } from './Icons';
 import { PlayerControls } from './PlayerControls';
 
@@ -13,6 +14,7 @@ interface VideoPlayerProps {
   title?: string;
   currentEpisode?: number;
   totalEpisodes?: number;
+  danmu?: DanmuItem[];
   skipConfig?: {
     enable: boolean;
     intro_time: number;
@@ -33,6 +35,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   title = 'Video',
   currentEpisode,
   totalEpisodes,
+  danmu,
   skipConfig,
   onNextEpisode,
   onPlayProgress,
@@ -50,6 +53,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const speedRef = useRef(1);
   const keyHoldTimeoutRef = useRef<number | null>(null);
   const isKeyDownRef = useRef(false);
+  const [danmuConfig, setDanmuConfig] = useState<DanmuConfig>({
+    enabled: true,
+    fontSize: 22,
+    speedFactor: 1.0,
+    areaPercent: 0.5,
+  });
   const [skipNotification, setSkipNotification] = useState<{
     type: 'intro' | 'outro';
   } | null>(null);
@@ -625,6 +634,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         playsInline
       />
 
+      <DanmuLayer
+        danmu={danmu || []}
+        currentTime={state.currentTime}
+        paused={!state.playing}
+        config={danmuConfig}
+      />
+
       {/* Skip Notification */}
       <AnimatePresence>
         {skipNotification && (
@@ -808,6 +824,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onSetIntro={handleSetIntro}
         onSetOutro={handleSetOutro}
         onClearConfig={handleClearConfig}
+        danmuConfig={danmuConfig}
+        onDanmuConfigChange={setDanmuConfig}
       />
 
       {/* Top Gradient */}

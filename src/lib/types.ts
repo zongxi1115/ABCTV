@@ -133,3 +133,19 @@ export interface VideoState {
   introTime?: number;
   outroTime?: number;
 }
+
+export type DanmuMode = 'top' | 'scroll';
+
+export interface DanmuItem {
+  time: number; // seconds
+  mode: DanmuMode;
+  color: string; // CSS color, e.g. #ffffff
+  text: string;
+}
+
+export interface DanmuConfig {
+  enabled: boolean;
+  fontSize: number; // px, e.g. 16-36
+  speedFactor: number; // 0.5 ~ 3.0, higher = faster
+  areaPercent: number; // 0.25 | 0.5 | 0.75 | 1.0
+}
