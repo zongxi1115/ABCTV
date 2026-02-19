@@ -351,12 +351,14 @@ function getUpstashRedisClient(): Redis {
   let client: Redis | undefined = (global as any)[globalKey];
 
   if (!client) {
-    const upstashUrl = process.env.UPSTASH_URL;
-    const upstashToken = process.env.UPSTASH_TOKEN;
+    // 支持标准 Upstash 环境变量，也兼容 Vercel KV 的命名
+    const upstashUrl = process.env.UPSTASH_URL || process.env.KV_REST_API_URL;
+    const upstashToken =
+      process.env.UPSTASH_TOKEN || process.env.KV_REST_API_TOKEN;
 
     if (!upstashUrl || !upstashToken) {
       throw new Error(
-        'UPSTASH_URL and UPSTASH_TOKEN env variables must be set'
+        'UPSTASH_URL/KV_REST_API_URL and UPSTASH_TOKEN/KV_REST_API_TOKEN env variables must be set'
       );
     }
 

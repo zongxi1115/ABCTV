@@ -547,7 +547,7 @@ export const UserMenu: React.FC = () => {
                 豆瓣代理地址
               </h4>
               <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
-                仅在启用豆瓣代理时生效，留空则使用服务器 API
+                自定义代理地址，留空则使用服务器默认代理或 API
               </p>
             </div>
             <input
@@ -598,7 +598,7 @@ export const UserMenu: React.FC = () => {
                 图片代理地址
               </h4>
               <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
-                仅在启用图片代理时生效
+                自定义代理地址，留空则使用服务器默认代理
               </p>
             </div>
             <input

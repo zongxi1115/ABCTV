@@ -4,7 +4,7 @@
 
 import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 // 客户端收藏 API
 import {
@@ -18,6 +18,7 @@ import { DoubanItem } from '@/lib/types';
 
 import CapsuleSwitch from '@/components/CapsuleSwitch';
 import ContinueWatching from '@/components/ContinueWatching';
+import NetflixHeroSlider from '@/components/NetflixHeroSlider';
 import PageLayout from '@/components/PageLayout';
 import ScrollableRow from '@/components/ScrollableRow';
 import { useSite } from '@/components/SiteProvider';
@@ -32,6 +33,20 @@ function HomeClient() {
   const { announcement } = useSite();
 
   const [showAnnouncement, setShowAnnouncement] = useState(false);
+
+  const heroSliderItems = useMemo(
+    () => [
+      ...hotMovies.slice(0, 3).map((item) => ({
+        doubanId: item.id,
+        typeHint: 'movie' as const,
+      })),
+      ...hotTvShows.slice(0, 3).map((item) => ({
+        doubanId: item.id,
+        typeHint: 'tv' as const,
+      })),
+    ],
+    [hotMovies, hotTvShows]
+  );
 
   // 检查公告弹窗状态
   useEffect(() => {
@@ -210,6 +225,12 @@ function HomeClient() {
           ) : (
             // 首页视图
             <>
+              {heroSliderItems.length > 0 && (
+                <div className='-mx-2 sm:-mx-10 mb-8'>
+                  <NetflixHeroSlider items={heroSliderItems} />
+                </div>
+              )}
+
               {/* 继续观看 */}
               <ContinueWatching />
 

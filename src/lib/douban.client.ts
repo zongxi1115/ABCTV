@@ -170,6 +170,112 @@ interface DoubanListParams {
   pageStart?: number;
 }
 
+export interface DoubanSubjectBrief {
+  id: string;
+  title: string;
+  intro: string;
+  pubdate: string[];
+  card_subtitle: string;
+  rating: number;
+  year: string;
+  type: 'tv' | 'movie' | string;
+  cover_url: string;
+  video_url: string;
+}
+
+interface DoubanSubjectApiResponse {
+  id: string;
+  title: string;
+  intro?: string;
+  pubdate?: string[];
+  card_subtitle?: string;
+  year?: string;
+  type?: string;
+  rating?: {
+    value?: number;
+  };
+  pic?: {
+    large?: string;
+    normal?: string;
+  };
+  cover_url?: string;
+  trailers?: Array<{
+    video_url?: string;
+    cover_url?: string;
+  }>;
+}
+
+function mapDoubanSubjectToBrief(
+  data: DoubanSubjectApiResponse
+): DoubanSubjectBrief {
+  const videoUrl =
+    data.trailers?.find((t) => typeof t.video_url === 'string' && t.video_url)
+      ?.video_url || '';
+
+  const coverUrl =
+    data.cover_url ||
+    data.pic?.large ||
+    data.pic?.normal ||
+    data.trailers?.find((t) => typeof t.cover_url === 'string' && t.cover_url)
+      ?.cover_url ||
+    '';
+
+  return {
+    id: String(data.id || ''),
+    title: data.title || '',
+    intro: data.intro || '',
+    pubdate: Array.isArray(data.pubdate) ? data.pubdate : [],
+    card_subtitle: data.card_subtitle || '',
+    rating: typeof data.rating?.value === 'number' ? data.rating.value : 0,
+    year: data.year || '',
+    type: data.type || '',
+    cover_url: coverUrl,
+    video_url: videoUrl,
+  };
+}
+
+async function fetchDoubanSubject(id: string): Promise<DoubanSubjectBrief> {
+  if (!/^[0-9]+$/.test(id)) {
+    throw new Error('doubanId 参数非法');
+  }
+
+  // 使用你提供的可用镜像域名（字段更完整，且通常带 trailers）
+  const target = `https://m.douban.cmliussss.net/rexxar/api/v2/subject/${id}`;
+  const response = await fetchWithTimeout(target);
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! Status: ${response.status}`);
+  }
+
+  const data: DoubanSubjectApiResponse = await response.json();
+  return mapDoubanSubjectToBrief(data);
+}
+
+/**
+ * 获取豆瓣条目详情（为首页轮播提供简化字段）
+ */
+export async function getDoubanSubjectBrief(
+  doubanId: string
+): Promise<DoubanSubjectBrief> {
+  if (shouldUseDoubanClient()) {
+    return fetchDoubanSubject(doubanId);
+  }
+
+  const response = await fetch(`/api/douban/subject?id=${doubanId}`);
+  if (!response.ok) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('globalError', {
+          detail: { message: '获取豆瓣详情失败' },
+        })
+      );
+    }
+    throw new Error('获取豆瓣详情失败');
+  }
+
+  return response.json();
+}
+
 export async function getDoubanList(
   params: DoubanListParams
 ): Promise<DoubanResult> {

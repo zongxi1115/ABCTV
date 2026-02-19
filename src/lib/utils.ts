@@ -8,29 +8,24 @@ import Hls from 'hls.js';
 export function getImageProxyUrl(): string | null {
   if (typeof window === 'undefined') return null;
 
-  // 本地未开启图片代理，则不使用代理
+  // 检查是否显式禁用了图片代理
   const enableImageProxy = localStorage.getItem('enableImageProxy');
-  if (enableImageProxy !== null) {
-    if (!JSON.parse(enableImageProxy) as boolean) {
-      return null;
-    }
+  if (enableImageProxy !== null && !(JSON.parse(enableImageProxy) as boolean)) {
+    return null;
   }
 
+  // 优先使用用户自定义的代理地址（非空才使用）
   const localImageProxy = localStorage.getItem('imageProxyUrl');
-  if (localImageProxy != null) {
-    return localImageProxy.trim() ? localImageProxy.trim() : null;
+  if (localImageProxy !== null && localImageProxy.trim()) {
+    return localImageProxy.trim();
   }
 
-  // 如果未设置，则使用全局对象
+  // 用户未设置或设置为空，则使用服务器默认代理（来自 window.RUNTIME_CONFIG，即 .env.local）
   const serverImageProxy = (window as any).RUNTIME_CONFIG?.IMAGE_PROXY;
   return serverImageProxy && serverImageProxy.trim()
     ? serverImageProxy.trim()
     : null;
 }
-
-/**
- * 处理图片 URL，如果设置了图片代理则使用代理
- */
 export function processImageUrl(originalUrl: string): string {
   if (!originalUrl) return originalUrl;
 
@@ -46,29 +41,27 @@ export function processImageUrl(originalUrl: string): string {
 export function getDoubanProxyUrl(): string | null {
   if (typeof window === 'undefined') return null;
 
-  // 本地未开启豆瓣代理，则不使用代理
+  // 检查是否显式禁用了豆瓣代理
   const enableDoubanProxy = localStorage.getItem('enableDoubanProxy');
-  if (enableDoubanProxy !== null) {
-    if (!JSON.parse(enableDoubanProxy) as boolean) {
-      return null;
-    }
+  if (
+    enableDoubanProxy !== null &&
+    !(JSON.parse(enableDoubanProxy) as boolean)
+  ) {
+    return null;
   }
 
+  // 优先使用用户自定义的代理地址（非空才使用）
   const localDoubanProxy = localStorage.getItem('doubanProxyUrl');
-  if (localDoubanProxy != null) {
-    return localDoubanProxy.trim() ? localDoubanProxy.trim() : null;
+  if (localDoubanProxy !== null && localDoubanProxy.trim()) {
+    return localDoubanProxy.trim();
   }
 
-  // 如果未设置，则使用全局对象
+  // 用户未设置或设置为空，则使用服务器默认代理（来自 window.RUNTIME_CONFIG，即 .env.local）
   const serverDoubanProxy = (window as any).RUNTIME_CONFIG?.DOUBAN_PROXY;
   return serverDoubanProxy && serverDoubanProxy.trim()
     ? serverDoubanProxy.trim()
     : null;
 }
-
-/**
- * 处理豆瓣 URL，如果设置了豆瓣代理则使用代理
- */
 export function processDoubanUrl(originalUrl: string): string {
   if (!originalUrl) return originalUrl;
 
