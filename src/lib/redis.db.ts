@@ -3,7 +3,13 @@
 import { createClient, RedisClientType } from 'redis';
 
 import { AdminConfig } from './admin.types';
-import { Favorite, IStorage, PlayRecord, SkipConfig } from './types';
+import {
+  Favorite,
+  IStorage,
+  PlayRecord,
+  SearchRankItem,
+  SkipConfig,
+} from './types';
 
 // 搜索历史最大条数
 const SEARCH_HISTORY_LIMIT = 20;
@@ -264,6 +270,33 @@ export class RedisStorage implements IStorage {
     } else {
       await withRetry(() => this.client.del(key));
     }
+  }
+
+  // ---------- 搜索排行榜（全局） ----------
+  private searchRankKey() {
+    return 'search:rank';
+  }
+
+  async incrementSearchRank(keyword: string): Promise<void> {
+    const trimmed = ensureString(keyword).trim();
+    if (!trimmed) return;
+    await withRetry(() =>
+      this.client.zIncrBy(this.searchRankKey(), 1, trimmed)
+    );
+  }
+
+  async getSearchRank(limit: number): Promise<SearchRankItem[]> {
+    const safeLimit = Math.min(Math.max(limit || 10, 1), 50);
+    const items = await withRetry(() =>
+      this.client.zRangeWithScores(this.searchRankKey(), 0, safeLimit - 1, {
+        REV: true,
+      })
+    );
+
+    return (items || []).map((item: any) => ({
+      keyword: ensureString(item.value),
+      count: Number(item.score) || 0,
+    }));
   }
 
   // ---------- 获取全部用户 ----------

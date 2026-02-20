@@ -15,7 +15,7 @@
  */
 
 import { getAuthInfoFromBrowserCookie } from './auth';
-import { SkipConfig } from './types';
+import { SearchRankItem, SkipConfig } from './types';
 
 // 全局错误触发函数
 function triggerGlobalError(message: string) {
@@ -71,6 +71,7 @@ interface UserCacheStore {
 const PLAY_RECORDS_KEY = 'moontv_play_records';
 const FAVORITES_KEY = 'moontv_favorites';
 const SEARCH_HISTORY_KEY = 'moontv_search_history';
+const SEARCH_RANK_KEY = 'moontv_search_rank';
 
 // 缓存相关常量
 const CACHE_PREFIX = 'moontv_cache_';
@@ -95,6 +96,7 @@ const STORAGE_TYPE = (() => {
 // ---------------- 搜索历史相关常量 ----------------
 // 搜索历史最大保存条数
 const SEARCH_HISTORY_LIMIT = 20;
+const SEARCH_RANK_LIMIT = 10;
 
 // ---- 缓存管理器 ----
 class HybridCacheManager {
@@ -845,6 +847,113 @@ export async function deleteSearchHistory(keyword: string): Promise<void> {
     console.error('删除搜索历史失败:', err);
     triggerGlobalError('删除搜索历史失败');
   }
+}
+
+/* ---------------- 搜索排行榜相关 API ---------------- */
+
+type SearchRankStore = Record<string, { count: number; updatedAt: number }>;
+
+function buildSearchRankList(
+  store: SearchRankStore,
+  limit: number
+): SearchRankItem[] {
+  const safeLimit = Math.min(Math.max(limit || SEARCH_RANK_LIMIT, 1), 50);
+  return Object.entries(store)
+    .map(([keyword, meta]) => ({
+      keyword,
+      count: Number(meta?.count) || 0,
+      updatedAt: Number(meta?.updatedAt) || 0,
+    }))
+    .filter((x) => x.keyword && x.count > 0)
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return b.updatedAt - a.updatedAt;
+    })
+    .slice(0, safeLimit)
+    .map(({ keyword, count }) => ({ keyword, count }));
+}
+
+function readLocalSearchRankStore(): SearchRankStore {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(SEARCH_RANK_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as SearchRankStore;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalSearchRankStore(store: SearchRankStore) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(SEARCH_RANK_KEY, JSON.stringify(store));
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * 获取搜索排行榜（默认 top10）。
+ * 数据库存储模式下从服务端读取；localStorage 模式下从浏览器本地统计读取。
+ */
+export async function getSearchRank(
+  limit: number = SEARCH_RANK_LIMIT
+): Promise<SearchRankItem[]> {
+  if (typeof window === 'undefined') return [];
+
+  if (STORAGE_TYPE !== 'localstorage') {
+    try {
+      return await fetchFromApi<SearchRankItem[]>(
+        `/api/searchrank?limit=${encodeURIComponent(String(limit))}`
+      );
+    } catch (err) {
+      console.warn('获取搜索排行榜失败:', err);
+      return [];
+    }
+  }
+
+  const store = readLocalSearchRankStore();
+  return buildSearchRankList(store, limit);
+}
+
+/**
+ * 记录一次搜索关键词并返回最新排行榜（默认 top10）。
+ */
+export async function recordSearchRank(
+  keyword: string,
+  limit: number = SEARCH_RANK_LIMIT
+): Promise<SearchRankItem[]> {
+  const trimmed = keyword.trim();
+  if (!trimmed) return [];
+
+  if (typeof window === 'undefined') return [];
+
+  if (STORAGE_TYPE !== 'localstorage') {
+    try {
+      const res = await fetchWithAuth('/api/searchrank', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ keyword: trimmed, limit }),
+      });
+      return (await res.json()) as SearchRankItem[];
+    } catch (err) {
+      console.warn('记录搜索排行榜失败:', err);
+      return await getSearchRank(limit);
+    }
+  }
+
+  const store = readLocalSearchRankStore();
+  const prev = store[trimmed];
+  store[trimmed] = {
+    count: (Number(prev?.count) || 0) + 1,
+    updatedAt: Date.now(),
+  };
+  writeLocalSearchRankStore(store);
+  return buildSearchRankList(store, limit);
 }
 
 // ---------------- 收藏相关 API ----------------

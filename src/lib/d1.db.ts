@@ -1,7 +1,13 @@
 /* eslint-disable no-console, @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 
 import { AdminConfig } from './admin.types';
-import { Favorite, IStorage, PlayRecord, SkipConfig } from './types';
+import {
+  Favorite,
+  IStorage,
+  PlayRecord,
+  SearchRankItem,
+  SkipConfig,
+} from './types';
 
 // 搜索历史最大条数
 const SEARCH_HISTORY_LIMIT = 20;
@@ -426,6 +432,54 @@ export class D1Storage implements IStorage {
       }
     } catch (err) {
       console.error('Failed to delete search history:', err);
+      throw err;
+    }
+  }
+
+  // 搜索排行榜（全局）
+  async incrementSearchRank(keyword: string): Promise<void> {
+    try {
+      const db = await this.getDatabase();
+      await db
+        .prepare(
+          `
+          INSERT INTO search_rank (keyword, count, updated_at)
+          VALUES (?, 1, strftime('%s', 'now'))
+          ON CONFLICT(keyword) DO UPDATE SET
+            count = count + 1,
+            updated_at = strftime('%s', 'now')
+        `
+        )
+        .bind(keyword)
+        .run();
+    } catch (err) {
+      console.error('Failed to increment search rank:', err);
+      throw err;
+    }
+  }
+
+  async getSearchRank(limit: number): Promise<SearchRankItem[]> {
+    try {
+      const db = await this.getDatabase();
+      const safeLimit = Math.min(Math.max(limit || 10, 1), 50);
+      const result = await db
+        .prepare(
+          `
+          SELECT keyword, count
+          FROM search_rank
+          ORDER BY count DESC, updated_at DESC
+          LIMIT ?
+        `
+        )
+        .bind(safeLimit)
+        .all<{ keyword: string; count: number }>();
+
+      return result.results.map((row) => ({
+        keyword: row.keyword,
+        count: Number(row.count) || 0,
+      }));
+    } catch (err) {
+      console.error('Failed to get search rank:', err);
       throw err;
     }
   }

@@ -10,10 +10,13 @@ import {
   Layers,
   Loader2,
   Play,
+  RefreshCw,
   Search,
   Star,
+  TrendingUp,
   X,
 } from 'lucide-react';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
@@ -22,12 +25,15 @@ import {
   clearSearchHistory,
   deleteSearchHistory,
   getSearchHistory,
+  getSearchRank,
+  recordSearchRank,
   subscribeToDataUpdates,
 } from '@/lib/db.client';
-import { SearchResult } from '@/lib/types';
+import { SearchRankItem, SearchResult } from '@/lib/types';
 import { yellowWords } from '@/lib/yellow';
 
 import PageLayout from '@/components/PageLayout';
+import ScrollableRow from '@/components/ScrollableRow';
 
 // --- Animation Variants ---
 const containerVariants: Variants = {
@@ -209,6 +215,109 @@ const NewMovieCard: React.FC<{
             <ChevronRight size={12} className='text-green-400' />
           </div>
         </motion.div>
+      </div>
+    </motion.div>
+  );
+};
+
+const RankCard: React.FC<{
+  item: SearchRankItem;
+  index: number;
+  onClick: (keyword: string) => void;
+}> = ({ item, index, onClick }) => {
+  const isTop3 = index < 3;
+
+  // 这里的颜色方案要更加“鲜明”
+  const rankColors = [
+    'text-red-500 shadow-red-500/50',
+    'text-orange-400 shadow-orange-400/50',
+    'text-yellow-300 shadow-yellow-300/50',
+    'text-slate-400 shadow-slate-400/30',
+  ];
+  const rankColorClass = index < 3 ? rankColors[index] : rankColors[3];
+
+  const gradients = [
+    'from-red-900/80 to-black',
+    'from-orange-900/80 to-black',
+    'from-amber-900/80 to-black',
+    'from-slate-900/80 to-black',
+  ];
+  const bgGradient = index < 3 ? gradients[index] : gradients[3];
+
+  return (
+    <motion.div
+      whileHover={{ scale: 1.05, y: -5 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={() => onClick(item.keyword)}
+      className='relative flex-shrink-0 w-36 h-24 cursor-pointer group'
+    >
+      {/* Ranking Number - 更色彩鲜明且带阴影 */}
+      <div className='absolute -left-6 -bottom-3 z-0 pointer-events-none select-none overflow-hidden'>
+        <span
+          className={`text-[100px] font-black leading-none transition-all duration-300 group-hover:scale-110 ${
+            rankColorClass.split(' ')[0]
+          } drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]`}
+          style={{
+            opacity: isTop3 ? 0.8 : 0.4,
+            filter: isTop3 ? 'brightness(1.2)' : 'brightness(0.8)',
+          }}
+        >
+          {index + 1}
+        </span>
+      </div>
+
+      {/* Main Card Content - 背景更花里胡哨 */}
+      <div
+        className={`relative z-10 w-full h-full p-3 rounded-xl border border-white/10 backdrop-blur-md bg-gradient-to-br ${bgGradient} overflow-hidden shadow-2xl transition-all duration-300 group-hover:border-white/30`}
+      >
+        {/* Fancy background elements - 各种光斑和杂色 */}
+        <div className='absolute -right-2 -top-2 w-16 h-16 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-xl' />
+        <div
+          className={`absolute -left-4 -bottom-4 w-12 h-12 rounded-full blur-lg opacity-30 ${
+            isTop3 ? 'bg-red-500' : 'bg-blue-500'
+          }`}
+        />
+        <div className='absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(255,255,255,0.05),transparent)]' />
+
+        {/* Glow effect on hover */}
+        <div className='absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
+
+        <div className='flex flex-col h-full justify-between relative z-20'>
+          <div className='flex justify-between items-start'>
+            <span className='text-[9px] font-black uppercase tracking-widest text-white/40'>
+              TOP {index + 1}
+            </span>
+            {isTop3 && (
+              <div className='p-1 rounded bg-white/10'>
+                <TrendingUp size={10} className='text-white animate-pulse' />
+              </div>
+            )}
+          </div>
+
+          <div className='space-y-0.5'>
+            <h3 className='text-sm font-bold text-white line-clamp-2 leading-tight drop-shadow-sm group-hover:text-green-400 transition-colors'>
+              {item.keyword}
+            </h3>
+            <div className='flex items-center gap-1.5'>
+              <div className='h-1 flex-1 bg-white/10 rounded-full overflow-hidden'>
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{
+                    width: `${Math.min(100, (item.count / 100) * 100)}%`,
+                  }}
+                  className={`h-full ${
+                    isTop3 ? 'bg-green-500' : 'bg-slate-500'
+                  }`}
+                />
+              </div>
+              <span className='text-[8px] text-white/50 font-medium tabular-nums'>
+                {item.count > 999
+                  ? `${(item.count / 1000).toFixed(1)}k`
+                  : item.count}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </motion.div>
   );
@@ -433,6 +542,8 @@ const DetailModal = ({
 function SearchPageClient() {
   // 搜索历史
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  // 搜索排行榜
+  const [searchRank, setSearchRank] = useState<SearchRankItem[]>([]);
   // 返回顶部按钮显示状态
   const [showBackToTop, setShowBackToTop] = useState(false);
   // 详情modal选中项
@@ -444,6 +555,11 @@ function SearchPageClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+
+  // 搜索建议
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
 
   // 获取默认聚合设置：只读取用户本地设置，默认为 true
   const getDefaultAggregate = () => {
@@ -506,12 +622,52 @@ function SearchPageClient() {
     });
   }, [searchResults]);
 
+  // 搜索建议防抖
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed || trimmed === searchParams.get('q')) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsFetchingSuggestions(true);
+      try {
+        const res = await fetch(
+          `https://m.douban.cmliussss.net/rexxar/api/v2/search?q=${encodeURIComponent(
+            trimmed
+          )}`
+        );
+        const data = await res.json();
+        if (data.subjects && data.subjects.items) {
+          setSuggestions(data.subjects.items);
+          if (
+            document.activeElement === document.getElementById('searchInput')
+          ) {
+            setShowSuggestions(true);
+          }
+        } else {
+          setSuggestions([]);
+        }
+      } catch (error) {
+        setSuggestions([]);
+      } finally {
+        setIsFetchingSuggestions(false);
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, searchParams]);
+
   useEffect(() => {
     // 无搜索参数时聚焦搜索框
     !searchParams.get('q') && document.getElementById('searchInput')?.focus();
 
     // 初始加载搜索历史
     getSearchHistory().then(setSearchHistory);
+    // 初始加载搜索排行榜
+    getSearchRank().then(setSearchRank);
 
     // 监听搜索历史更新事件
     const unsubscribe = subscribeToDataUpdates(
@@ -568,6 +724,9 @@ function SearchPageClient() {
 
       // 保存到搜索历史 (事件监听会自动更新界面)
       addSearchHistory(query);
+
+      // 记录排行榜并刷新榜单
+      recordSearchRank(query).then(setSearchRank);
     } else {
       setShowResults(false);
     }
@@ -634,13 +793,17 @@ function SearchPageClient() {
     setSearchQuery(trimmed);
     setIsLoading(true);
     setShowResults(true);
+    setShowSuggestions(false);
+
+    // 如果搜索词与当前 URL 一致，router.push 不会触发 searchParams 变化，手动执行一次
+    if ((searchParams.get('q') || '').trim() === trimmed) {
+      fetchSearchResults(trimmed);
+      addSearchHistory(trimmed);
+      recordSearchRank(trimmed).then(setSearchRank);
+      return;
+    }
 
     router.push(`/search?q=${encodeURIComponent(trimmed)}`);
-    // 直接发请求
-    fetchSearchResults(trimmed);
-
-    // 保存到搜索历史 (事件监听会自动更新界面)
-    addSearchHistory(trimmed);
   };
 
   // 返回顶部功能
@@ -661,19 +824,98 @@ function SearchPageClient() {
     <PageLayout activePath='/search'>
       <div className='px-4 sm:px-10 py-4 sm:py-8 overflow-visible mb-10'>
         {/* 搜索框 */}
-        <div className='mb-8'>
-          <form onSubmit={handleSearch} className='max-w-2xl mx-auto'>
+        <div className='mb-8 relative'>
+          <form onSubmit={handleSearch} className='max-w-2xl mx-auto relative'>
             <div className='relative'>
               <Search className='absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-gray-500' />
               <input
                 id='searchInput'
                 type='text'
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => {
+                  if (suggestions.length > 0) setShowSuggestions(true);
+                }}
+                onBlur={() => {
+                  setTimeout(() => setShowSuggestions(false), 200);
+                }}
                 placeholder='搜索电影、电视剧...'
                 className='w-full h-12 rounded-lg bg-gray-50/80 py-3 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white border border-gray-200/50 shadow-sm dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500 dark:focus:bg-gray-700 dark:border-gray-700'
               />
             </div>
+
+            {/* 搜索建议下拉框 */}
+            <AnimatePresence>
+              {showSuggestions && searchQuery.trim() !== '' && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className='absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900/95 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 max-h-[60vh] overflow-y-auto'
+                >
+                  {isFetchingSuggestions ? (
+                    <div className='flex justify-center items-center p-8'>
+                      <Loader2
+                        className='animate-spin text-green-500'
+                        size={24}
+                      />
+                    </div>
+                  ) : suggestions.length > 0 ? (
+                    <div className='flex flex-col'>
+                      {suggestions.map((item: any, idx: number) => {
+                        if (item.layout !== 'subject') return null;
+                        const target = item.target;
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              setSearchQuery(target.title);
+                              setShowSuggestions(false);
+                              router.push(
+                                `/search?q=${encodeURIComponent(target.title)}`
+                              );
+                            }}
+                            className='flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors border-b border-gray-100 dark:border-white/5 last:border-0'
+                          >
+                            <Image
+                              src={
+                                process.env.NEXT_PUBLIC_IMAGE_PROXY +
+                                target.cover_url
+                              }
+                              alt={target.title}
+                              className='w-12 h-16 object-cover rounded-md'
+                            />
+                            <div className='flex-1 min-w-0'>
+                              <div className='flex items-center justify-between mb-1'>
+                                <h4 className='text-gray-900 dark:text-white font-medium truncate'>
+                                  {target.title}
+                                </h4>
+                                {target.rating?.value > 0 && (
+                                  <span className='text-yellow-500 dark:text-yellow-400 text-sm font-bold flex items-center gap-1'>
+                                    <Star size={12} fill='currentColor' />
+                                    {target.rating.value.toFixed(1)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className='text-xs text-gray-500 dark:text-slate-400 truncate mb-1'>
+                                {target.year} | {target.card_subtitle}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className='p-4 text-center text-gray-500 dark:text-slate-400 text-sm'>
+                      没有找到相关建议
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </form>
         </div>
 
@@ -793,52 +1035,97 @@ function SearchPageClient() {
                 </motion.div>
               </LayoutGroup>
             </section>
-          ) : searchHistory.length > 0 ? (
-            // 搜索历史
-            <section className='mb-12'>
-              <h2 className='mb-4 text-xl font-bold text-gray-800 text-left dark:text-gray-200'>
-                搜索历史
-                {searchHistory.length > 0 && (
-                  <button
-                    onClick={() => {
-                      clearSearchHistory(); // 事件监听会自动更新界面
-                    }}
-                    className='ml-3 text-sm text-gray-500 hover:text-red-500 transition-colors dark:text-gray-400 dark:hover:text-red-500'
-                  >
-                    清空
-                  </button>
-                )}
-              </h2>
-              <div className='flex flex-wrap gap-2'>
-                {searchHistory.map((item) => (
-                  <div key={item} className='relative group'>
+          ) : searchRank.length > 0 || searchHistory.length > 0 ? (
+            <>
+              {/* 搜索排行榜 */}
+              {searchRank.length > 0 && (
+                <section className='mb-14'>
+                  <div className='flex items-center justify-between mb-6'>
+                    <h2 className='text-3xl font-extrabold text-white flex items-center gap-3'>
+                      <span className='w-2 h-9 bg-red-600 rounded-sm block shadow-[0_0_15px_rgba(220,38,38,0.5)]'></span>
+                      今日 Top 排行
+                      <span className='text-xs font-medium text-slate-500 uppercase tracking-tighter ml-2 bg-white/5 px-2 py-1 rounded border border-white/5'>
+                        Trending Today
+                      </span>
+                    </h2>
                     <button
-                      onClick={() => {
-                        setSearchQuery(item);
-                        router.push(
-                          `/search?q=${encodeURIComponent(item.trim())}`
-                        );
-                      }}
-                      className='px-4 py-2 bg-gray-500/10 hover:bg-gray-300 rounded-full text-sm text-gray-700 transition-colors duration-200 dark:bg-gray-700/50 dark:hover:bg-gray-600 dark:text-gray-300'
+                      onClick={() => getSearchRank().then(setSearchRank)}
+                      className='flex items-center gap-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all text-sm group'
                     >
-                      {item}
-                    </button>
-                    {/* 删除按钮 */}
-                    <button
-                      aria-label='删除搜索历史'
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        deleteSearchHistory(item); // 事件监听会自动更新界面
-                      }}
-                      className='absolute -top-1 -right-1 w-4 h-4 opacity-0 group-hover:opacity-100 bg-gray-400 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] transition-colors'
-                    >
-                      <X className='w-3 h-3' />
+                      <RefreshCw
+                        size={14}
+                        className='group-hover:rotate-180 transition-transform duration-500 text-green-500'
+                      />
+                      刷新
                     </button>
                   </div>
-                ))}
-              </div>
-            </section>
+
+                  <ScrollableRow scrollDistance={400}>
+                    <div className='flex gap-6 pb-6 pt-4 px-4'>
+                      {searchRank.map((item, idx) => (
+                        <RankCard
+                          key={`${item.keyword}-${idx}`}
+                          item={item}
+                          index={idx}
+                          onClick={(keyword) => {
+                            setSearchQuery(keyword);
+                            router.push(
+                              `/search?q=${encodeURIComponent(keyword.trim())}`
+                            );
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </ScrollableRow>
+                </section>
+              )}
+
+              {/* 搜索历史 */}
+              {searchHistory.length > 0 && (
+                <section className='mb-12'>
+                  <h2 className='mb-4 text-xl font-bold text-gray-800 text-left dark:text-gray-200'>
+                    搜索历史
+                    <button
+                      onClick={() => {
+                        clearSearchHistory(); // 事件监听会自动更新界面
+                      }}
+                      className='ml-3 text-sm text-gray-500 hover:text-red-500 transition-colors dark:text-gray-400 dark:hover:text-red-500'
+                    >
+                      清空
+                    </button>
+                  </h2>
+                  <div className='flex flex-wrap gap-2'>
+                    {searchHistory.map((item) => (
+                      <div key={item} className='relative group'>
+                        <button
+                          onClick={() => {
+                            setSearchQuery(item);
+                            router.push(
+                              `/search?q=${encodeURIComponent(item.trim())}`
+                            );
+                          }}
+                          className='px-4 py-2 bg-gray-500/10 hover:bg-gray-300 rounded-full text-sm text-gray-700 transition-colors duration-200 dark:bg-gray-700/50 dark:hover:bg-gray-600 dark:text-gray-300'
+                        >
+                          {item}
+                        </button>
+                        {/* 删除按钮 */}
+                        <button
+                          aria-label='删除搜索历史'
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            deleteSearchHistory(item); // 事件监听会自动更新界面
+                          }}
+                          className='absolute -top-1 -right-1 w-4 h-4 opacity-0 group-hover:opacity-100 bg-gray-400 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] transition-colors'
+                        >
+                          <X className='w-3 h-3' />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
           ) : null}
         </div>
       </div>

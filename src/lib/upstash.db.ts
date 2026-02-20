@@ -3,7 +3,13 @@
 import { Redis } from '@upstash/redis';
 
 import { AdminConfig } from './admin.types';
-import { Favorite, IStorage, PlayRecord, SkipConfig } from './types';
+import {
+  Favorite,
+  IStorage,
+  PlayRecord,
+  SearchRankItem,
+  SkipConfig,
+} from './types';
 
 // 搜索历史最大条数
 const SEARCH_HISTORY_LIMIT = 20;
@@ -250,6 +256,44 @@ export class UpstashRedisStorage implements IStorage {
     } else {
       await withRetry(() => this.client.del(key));
     }
+  }
+
+  // ---------- 搜索排行榜（全局） ----------
+  private searchRankKey() {
+    return 'search:rank';
+  }
+
+  async incrementSearchRank(keyword: string): Promise<void> {
+    const trimmed = ensureString(keyword).trim();
+    if (!trimmed) return;
+    await withRetry(() =>
+      this.client.zincrby(this.searchRankKey(), 1, trimmed)
+    );
+  }
+
+  async getSearchRank(limit: number): Promise<SearchRankItem[]> {
+    const safeLimit = Math.min(Math.max(limit || 10, 1), 50);
+    const raw = await withRetry(() =>
+      this.client.zrange(this.searchRankKey(), 0, safeLimit - 1, {
+        rev: true,
+        withScores: true,
+      })
+    );
+
+    if (!Array.isArray(raw)) return [];
+
+    const result: SearchRankItem[] = [];
+    for (let i = 0; i < raw.length; i += 2) {
+      const keyword = raw[i];
+      const score = raw[i + 1];
+      if (typeof keyword === 'undefined') continue;
+      result.push({
+        keyword: ensureString(keyword),
+        count: Number(score) || 0,
+      });
+    }
+
+    return result;
   }
 
   // ---------- 获取全部用户 ----------

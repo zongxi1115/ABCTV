@@ -58,6 +58,10 @@ export interface IStorage {
   addSearchHistory(userName: string, keyword: string): Promise<void>;
   deleteSearchHistory(userName: string, keyword?: string): Promise<void>;
 
+  // 搜索排行榜（全局）
+  incrementSearchRank(keyword: string): Promise<void>;
+  getSearchRank(limit: number): Promise<SearchRankItem[]>;
+
   // 用户列表
   getAllUsers(): Promise<string[]>;
 
@@ -94,6 +98,11 @@ export interface SearchResult {
   desc?: string;
   type_name?: string;
   douban_id?: number;
+}
+
+export interface SearchRankItem {
+  keyword: string;
+  count: number;
 }
 
 // 豆瓣数据结构
