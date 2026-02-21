@@ -13,7 +13,6 @@ import {
   RefreshCw,
   Search,
   Star,
-  TrendingUp,
   X,
 } from 'lucide-react';
 import Image from 'next/image';
@@ -33,7 +32,6 @@ import { SearchRankItem, SearchResult } from '@/lib/types';
 import { yellowWords } from '@/lib/yellow';
 
 import PageLayout from '@/components/PageLayout';
-import ScrollableRow from '@/components/ScrollableRow';
 
 // --- Animation Variants ---
 const containerVariants: Variants = {
@@ -220,106 +218,63 @@ const NewMovieCard: React.FC<{
   );
 };
 
-const RankCard: React.FC<{
+const RankListItem: React.FC<{
   item: SearchRankItem;
   index: number;
+  maxCount: number;
   onClick: (keyword: string) => void;
-}> = ({ item, index, onClick }) => {
+}> = ({ item, index, maxCount, onClick }) => {
   const isTop3 = index < 3;
-
-  // 这里的颜色方案要更加“鲜明”
-  const rankColors = [
-    'text-red-500 shadow-red-500/50',
-    'text-orange-400 shadow-orange-400/50',
-    'text-yellow-300 shadow-yellow-300/50',
-    'text-slate-400 shadow-slate-400/30',
+  const rankClasses = [
+    'text-red-500 bg-red-500/10 ring-red-500/20',
+    'text-orange-500 bg-orange-500/10 ring-orange-500/20',
+    'text-amber-500 bg-amber-500/10 ring-amber-500/20',
   ];
-  const rankColorClass = index < 3 ? rankColors[index] : rankColors[3];
+  const rankStyle = isTop3
+    ? rankClasses[index]
+    : 'text-slate-500 bg-slate-500/10 ring-slate-500/20 dark:text-slate-400';
 
-  const gradients = [
-    'from-red-900/80 to-black',
-    'from-orange-900/80 to-black',
-    'from-amber-900/80 to-black',
-    'from-slate-900/80 to-black',
-  ];
-  const bgGradient = index < 3 ? gradients[index] : gradients[3];
+  const formatCount = (count: number) =>
+    count > 999 ? `${(count / 1000).toFixed(1)}k` : String(count);
+
+  const pct = Math.max(0.06, Math.min(1, item.count / (maxCount || 1)));
 
   return (
-    <motion.div
-      whileHover={{ scale: 1.05, y: -5 }}
-      whileTap={{ scale: 0.95 }}
+    <button
+      type='button'
       onClick={() => onClick(item.keyword)}
-      className='relative flex-shrink-0 w-36 h-24 cursor-pointer group'
+      className='group w-full text-left rounded-2xl px-3.5 py-3 border border-black/5 bg-white/50 hover:bg-white/70 dark:bg-white/5 dark:hover:bg-white/10 dark:border-white/10 backdrop-blur-xl shadow-sm hover:shadow-md transition-all active:scale-[0.99]'
     >
-      {/* Ranking Number - 更色彩鲜明且带阴影 */}
-      <div className='absolute -left-6 -bottom-3 z-0 pointer-events-none select-none overflow-hidden'>
-        <span
-          className={`text-[100px] font-black leading-none transition-all duration-300 group-hover:scale-110 ${
-            rankColorClass.split(' ')[0]
-          } drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]`}
-          style={{
-            opacity: isTop3 ? 0.8 : 0.4,
-            filter: isTop3 ? 'brightness(1.2)' : 'brightness(0.8)',
-          }}
+      <div className='flex items-center gap-3'>
+        <div
+          className={`w-9 h-9 rounded-xl grid place-items-center font-black tabular-nums ring-1 ${rankStyle}`}
         >
           {index + 1}
-        </span>
-      </div>
+        </div>
 
-      {/* Main Card Content - 背景更花里胡哨 */}
-      <div
-        className={`relative z-10 w-full h-full p-3 rounded-xl border border-white/10 backdrop-blur-md bg-gradient-to-br ${bgGradient} overflow-hidden shadow-2xl transition-all duration-300 group-hover:border-white/30`}
-      >
-        {/* Fancy background elements - 各种光斑和杂色 */}
-        <div className='absolute -right-2 -top-2 w-16 h-16 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-xl' />
-        <div
-          className={`absolute -left-4 -bottom-4 w-12 h-12 rounded-full blur-lg opacity-30 ${
-            isTop3 ? 'bg-red-500' : 'bg-blue-500'
-          }`}
-        />
-        <div className='absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(255,255,255,0.05),transparent)]' />
-
-        {/* Glow effect on hover */}
-        <div className='absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300' />
-
-        <div className='flex flex-col h-full justify-between relative z-20'>
-          <div className='flex justify-between items-start'>
-            <span className='text-[9px] font-black uppercase tracking-widest text-white/40'>
-              TOP {index + 1}
-            </span>
-            {isTop3 && (
-              <div className='p-1 rounded bg-white/10'>
-                <TrendingUp size={10} className='text-white animate-pulse' />
-              </div>
-            )}
-          </div>
-
-          <div className='space-y-0.5'>
-            <h3 className='text-sm font-bold text-white line-clamp-2 leading-tight drop-shadow-sm group-hover:text-green-400 transition-colors'>
+        <div className='min-w-0 flex-1'>
+          <div className='flex items-center justify-between gap-2'>
+            <span className='text-sm font-semibold text-slate-900 dark:text-white truncate'>
               {item.keyword}
-            </h3>
-            <div className='flex items-center gap-1.5'>
-              <div className='h-1 flex-1 bg-white/10 rounded-full overflow-hidden'>
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{
-                    width: `${Math.min(100, (item.count / 100) * 100)}%`,
-                  }}
-                  className={`h-full ${
-                    isTop3 ? 'bg-green-500' : 'bg-slate-500'
-                  }`}
-                />
-              </div>
-              <span className='text-[8px] text-white/50 font-medium tabular-nums'>
-                {item.count > 999
-                  ? `${(item.count / 1000).toFixed(1)}k`
-                  : item.count}
-              </span>
-            </div>
+            </span>
+            <span className='text-xs text-slate-500 dark:text-slate-400 tabular-nums shrink-0'>
+              {formatCount(item.count)}
+            </span>
+          </div>
+          <div className='mt-2 h-1.5 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden'>
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${pct * 100}%` }}
+              className={`h-full ${
+                isTop3
+                  ? 'bg-gradient-to-r from-green-400 to-emerald-500'
+                  : 'bg-slate-400/70 dark:bg-slate-500/70'
+              }`}
+            />
           </div>
         </div>
       </div>
-    </motion.div>
+    </button>
   );
 };
 
@@ -570,6 +525,12 @@ function SearchPageClient() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+
+  const maxRankCount = useMemo(() => {
+    if (searchRank.length === 0) return 1;
+    const max = Math.max(...searchRank.map((r) => r.count || 0), 0);
+    return max > 0 ? max : 1;
+  }, [searchRank]);
 
   // 获取默认聚合设置：只读取用户本地设置，默认为 true
   const getDefaultAggregate = () => {
@@ -999,7 +960,7 @@ function SearchPageClient() {
 
   return (
     <PageLayout activePath='/search'>
-      <div className='px-4 sm:px-10 py-4 sm:py-8 overflow-visible mb-10'>
+      <div className='px-4 sm:px-10 pt-2 sm:pt-6 pb-6 overflow-visible mb-10'>
         {/* 搜索框 */}
         <div className='mb-8 relative'>
           <form onSubmit={handleSearch} className='max-w-2xl mx-auto relative'>
@@ -1099,7 +1060,7 @@ function SearchPageClient() {
         </div>
 
         {/* 搜索结果或搜索历史 */}
-        <div className='max-w-full mx-auto mt-12 overflow-visible'>
+        <div className='max-w-full mx-auto mt-6 sm:mt-12 overflow-visible'>
           {showResults ? (
             <section className='mb-12'>
               {/* 标题 & 聚合开关 */}
@@ -1400,12 +1361,12 @@ function SearchPageClient() {
               {/* 搜索排行榜 */}
               {searchRank.length > 0 && (
                 <section className='mb-14'>
-                  <div className='flex items-center justify-between mb-6'>
-                    <h2 className='text-3xl font-extrabold text-gray-900 dark:text-white flex items-center gap-3'>
-                      <span className='w-2 h-9 bg-red-600 rounded-sm block shadow-[0_0_15px_rgba(220,38,38,0.5)]'></span>
-                      今日 Top 排行
-                      <span className='text-xs font-medium text-slate-600 dark:text-slate-500 uppercase tracking-tighter ml-2 bg-black/5 dark:bg-white/5 px-2 py-1 rounded border border-black/10 dark:border-white/5'>
-                        Trending Today
+                  <div className='flex items-center justify-between mb-4'>
+                    <h2 className='text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2'>
+                      <span className='w-1.5 h-6 sm:h-7 bg-red-600 rounded-sm block shadow-[0_0_12px_rgba(220,38,38,0.35)]'></span>
+                      今日热搜榜
+                      <span className='text-[10px] sm:text-xs font-medium text-slate-600 dark:text-slate-400 tracking-tight ml-1 bg-black/5 dark:bg-white/5 px-2 py-1 rounded border border-black/10 dark:border-white/10'>
+                        Top Searches
                       </span>
                     </h2>
                     <button
@@ -1420,23 +1381,22 @@ function SearchPageClient() {
                     </button>
                   </div>
 
-                  <ScrollableRow scrollDistance={400}>
-                    <div className='flex gap-6 pb-6 pt-4 px-4'>
-                      {searchRank.map((item, idx) => (
-                        <RankCard
-                          key={`${item.keyword}-${idx}`}
-                          item={item}
-                          index={idx}
-                          onClick={(keyword) => {
-                            setSearchQuery(keyword);
-                            router.push(
-                              `/search?q=${encodeURIComponent(keyword.trim())}`
-                            );
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </ScrollableRow>
+                  <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4'>
+                    {searchRank.map((item, idx) => (
+                      <RankListItem
+                        key={`${item.keyword}-${idx}`}
+                        item={item}
+                        index={idx}
+                        maxCount={maxRankCount}
+                        onClick={(keyword) => {
+                          setSearchQuery(keyword);
+                          router.push(
+                            `/search?q=${encodeURIComponent(keyword.trim())}`
+                          );
+                        }}
+                      />
+                    ))}
+                  </div>
                 </section>
               )}
 

@@ -8,6 +8,7 @@ import {
   ExitWebFullscreenIcon,
   MaximizeIcon,
   MinimizeIcon,
+  MoreIcon,
   NextIcon,
   PauseIcon,
   PipIcon,
@@ -190,7 +191,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [showDanmuSettings, setShowDanmuSettings] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const danmuPanelRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   // Close danmu panel when clicking outside
   useEffect(() => {
@@ -204,10 +207,18 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       ) {
         setShowDanmuSettings(false);
       }
+      if (
+        showMoreMenu &&
+        moreMenuRef.current &&
+        !moreMenuRef.current.contains(target) &&
+        !target.closest('#more-btn')
+      ) {
+        setShowMoreMenu(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showDanmuSettings]);
+  }, [showDanmuSettings, showMoreMenu]);
 
   return (
     <AnimatePresence>
@@ -365,8 +376,128 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             )}
           </AnimatePresence>
 
+          {/* Mobile "More" Menu */}
+          <AnimatePresence>
+            {showMoreMenu && (
+              <motion.div
+                ref={moreMenuRef}
+                initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                className='absolute bottom-20 right-4 w-56 bg-[#1a1a1a]/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl z-30 p-2 font-sans sm:hidden'
+              >
+                <div className='px-2 py-1 text-[10px] font-semibold text-white/40 uppercase tracking-widest'>
+                  更多
+                </div>
+                <div className='space-y-1'>
+                  <button
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      setShowDanmuSettings(true);
+                      setShowSettings(false);
+                    }}
+                    className='w-full flex items-center justify-between px-2 py-2 rounded-xl hover:bg-white/10 transition-colors text-sm text-white/90'
+                  >
+                    <span className='flex items-center gap-2'>
+                      <DanmuIcon className='w-4 h-4' /> 弹幕设置
+                    </span>
+                    <span className='text-xs text-white/40'>
+                      {danmuConfig.enabled ? '开' : '关'}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      setShowSettings(true);
+                      setShowDanmuSettings(false);
+                    }}
+                    className='w-full flex items-center justify-between px-2 py-2 rounded-xl hover:bg-white/10 transition-colors text-sm text-white/90'
+                  >
+                    <span className='flex items-center gap-2'>
+                      <SettingsIcon className='w-4 h-4' /> 播放设置
+                    </span>
+                    <span className='text-xs text-white/40'>
+                      {state.playbackRate.toFixed(1)}x
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      onTogglePip();
+                    }}
+                    className='w-full flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-white/10 transition-colors text-sm text-white/90'
+                  >
+                    <PipIcon className='w-4 h-4' /> 画中画
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      onToggleWebFullscreen();
+                    }}
+                    className='w-full flex items-center justify-between px-2 py-2 rounded-xl hover:bg-white/10 transition-colors text-sm text-white/90'
+                  >
+                    <span className='flex items-center gap-2'>
+                      {state.webFullscreen ? (
+                        <ExitWebFullscreenIcon className='w-4 h-4' />
+                      ) : (
+                        <WebFullscreenIcon className='w-4 h-4' />
+                      )}
+                      网页全屏
+                    </span>
+                    <span className='text-xs text-white/40'>
+                      {state.webFullscreen ? '开' : '关'}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      onToggleFullscreen();
+                    }}
+                    className='w-full flex items-center justify-between px-2 py-2 rounded-xl hover:bg-white/10 transition-colors text-sm text-white/90'
+                  >
+                    <span className='flex items-center gap-2'>
+                      {state.fullscreen ? (
+                        <MinimizeIcon className='w-4 h-4' />
+                      ) : (
+                        <MaximizeIcon className='w-4 h-4' />
+                      )}
+                      全屏
+                    </span>
+                    <span className='text-xs text-white/40'>
+                      {state.fullscreen ? '开' : '关'}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      onToggleMute();
+                    }}
+                    className='w-full flex items-center justify-between px-2 py-2 rounded-xl hover:bg-white/10 transition-colors text-sm text-white/90'
+                  >
+                    <span className='flex items-center gap-2'>
+                      <VolumeIcon
+                        level={state.muted ? 0 : state.volume}
+                        className='w-4 h-4'
+                      />
+                      静音
+                    </span>
+                    <span className='text-xs text-white/40'>
+                      {state.muted ? '开' : '关'}
+                    </span>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Glass Control Bar Container */}
-          <div className='w-full relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-3 px-5 shadow-2xl overflow-visible group'>
+          <div className='w-full relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-2.5 px-3 sm:p-3 sm:px-5 shadow-2xl overflow-visible group'>
             {/* Progress Bar Row */}
             <div className='relative z-10 mb-1'>
               <ProgressBar
@@ -378,9 +509,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
             </div>
 
             {/* Controls Row */}
-            <div className='relative z-10 flex items-center justify-between h-10'>
+            <div className='relative z-10 flex items-center justify-between h-9 sm:h-10 gap-2'>
               {/* Left Group (Play + Next + Volume + Time) */}
-              <div className='flex items-center gap-3'>
+              <div className='flex items-center gap-2.5 sm:gap-3 min-w-0'>
                 <WithTooltip text={state.playing ? '暂停' : '播放'}>
                   <button
                     onClick={onPlayPause}
@@ -441,7 +572,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     />
                   </button>
                   {/* Expandable Volume Slider */}
-                  <div className='w-0 overflow-hidden group-hover/vol:w-24 transition-all duration-300 ease-out flex items-center opacity-0 group-hover/vol:opacity-100'>
+                  <div className='hidden sm:flex w-0 overflow-hidden group-hover/vol:w-24 transition-all duration-300 ease-out items-center opacity-0 group-hover/vol:opacity-100'>
                     <VolumeSlider
                       volume={state.muted ? 0 : state.volume}
                       onChange={onVolumeChange}
@@ -449,7 +580,15 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                   </div>
                 </div>
 
-                <div className='text-xs font-medium text-white/60 select-none tracking-wide'>
+                <div className='hidden sm:block text-xs font-medium text-white/60 select-none tracking-wide shrink-0'>
+                  <span className='text-white'>
+                    {formatTime(state.currentTime)}
+                  </span>
+                  <span className='mx-1 opacity-50'>/</span>
+                  <span>{formatTime(state.duration)}</span>
+                </div>
+
+                <div className='sm:hidden text-[10px] font-medium text-white/60 select-none tracking-wide tabular-nums shrink-0'>
                   <span className='text-white'>
                     {formatTime(state.currentTime)}
                   </span>
@@ -459,7 +598,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
               </div>
 
               {/* Right Group (Settings + PIP + Fullscreen) */}
-              <div className='flex items-center gap-3'>
+              <div className='flex items-center gap-2.5 sm:gap-3 shrink-0'>
                 <WithTooltip text='弹幕设置'>
                   <motion.button
                     aria-label='弹幕设置'
@@ -472,8 +611,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     onClick={() => {
                       setShowDanmuSettings(!showDanmuSettings);
                       setShowSettings(false);
+                      setShowMoreMenu(false);
                     }}
-                    className={`hover:opacity-100 transition-opacity ${
+                    className={`hidden sm:inline-flex hover:opacity-100 transition-opacity ${
                       showDanmuSettings
                         ? 'text-green-400'
                         : danmuConfig.enabled
@@ -497,8 +637,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     onClick={() => {
                       setShowSettings(!showSettings);
                       setShowDanmuSettings(false);
+                      setShowMoreMenu(false);
                     }}
-                    className={`hover:opacity-100 transition-opacity ${
+                    className={`hidden sm:inline-flex hover:opacity-100 transition-opacity ${
                       showSettings ? 'text-green-400' : 'text-white'
                     }`}
                   >
@@ -511,7 +652,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={onTogglePip}
-                    className='text-white/80 hover:text-white transition-colors'
+                    className='hidden sm:inline-flex text-white/80 hover:text-white transition-colors'
                   >
                     <PipIcon className='w-5 h-5' />
                   </motion.button>
@@ -524,7 +665,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={onToggleWebFullscreen}
-                    className={`text-white/80 hover:text-white transition-colors ${
+                    className={`hidden sm:inline-flex text-white/80 hover:text-white transition-colors ${
                       state.webFullscreen ? 'text-green-500' : ''
                     }`}
                   >
@@ -548,6 +689,25 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     ) : (
                       <MaximizeIcon className='w-5 h-5' />
                     )}
+                  </motion.button>
+                </WithTooltip>
+
+                <WithTooltip text='更多'>
+                  <motion.button
+                    aria-label='更多设置'
+                    id='more-btn'
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                      setShowMoreMenu((v) => !v);
+                      setShowSettings(false);
+                      setShowDanmuSettings(false);
+                    }}
+                    className={`sm:hidden text-white/80 hover:text-white transition-colors ${
+                      showMoreMenu ? 'text-green-400' : ''
+                    }`}
+                  >
+                    <MoreIcon className='w-5 h-5' />
                   </motion.button>
                 </WithTooltip>
               </div>

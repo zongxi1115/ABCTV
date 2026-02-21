@@ -1,4 +1,5 @@
 import { BackButton } from './BackButton';
+import GlobalSearchBar from './GlobalSearchBar';
 import MobileBottomNav from './MobileBottomNav';
 import MobileHeader from './MobileHeader';
 import Sidebar from './Sidebar';
@@ -15,6 +16,11 @@ const PageLayout = ({ children, activePath = '/' }: PageLayoutProps) => {
     <div className='w-full min-h-screen'>
       {/* 移动端头部 */}
       <MobileHeader showBackButton={['/play'].includes(activePath)} />
+
+      {/* 全局搜索框（移动端） */}
+      <div className='md:hidden px-4 pt-3 pb-2'>
+        <GlobalSearchBar />
+      </div>
 
       {/* 主要布局容器 */}
       <div className='flex md:grid md:grid-cols-[auto_1fr] w-full min-h-screen md:min-h-auto'>
@@ -34,6 +40,7 @@ const PageLayout = ({ children, activePath = '/' }: PageLayoutProps) => {
 
           {/* 桌面端顶部按钮 */}
           <div className='absolute top-2 right-4 z-20 hidden md:flex items-center gap-2'>
+            <GlobalSearchBar className='w-72 max-w-[42vw]' />
             <ThemeToggle />
             <UserMenu />
           </div>

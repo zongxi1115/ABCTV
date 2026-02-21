@@ -40,6 +40,14 @@ export const NextIcon: React.FC<SVGMotionProps<SVGSVGElement>> = (props) => (
   </motion.svg>
 );
 
+export const MoreIcon: React.FC<SVGMotionProps<SVGSVGElement>> = (props) => (
+  <motion.svg {...strokeIconProps} {...props}>
+    <circle cx='5' cy='12' r='1.5' fill='currentColor' stroke='none' />
+    <circle cx='12' cy='12' r='1.5' fill='currentColor' stroke='none' />
+    <circle cx='19' cy='12' r='1.5' fill='currentColor' stroke='none' />
+  </motion.svg>
+);
+
 export const VolumeIcon: React.FC<
   { level: number } & SVGMotionProps<SVGSVGElement>
 > = ({ level, ...props }) => {
