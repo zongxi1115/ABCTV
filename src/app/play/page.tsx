@@ -75,8 +75,8 @@ const Badge = ({
 }) => (
   <span
     onClick={onClick}
-    className={`px-2.5 py-1 rounded-md text-xs font-medium backdrop-blur-md bg-white/10 border border-white/10 dark:bg-white/5 dark:border-white/10 flex items-center gap-1 transition-colors ${
-      onClick ? 'cursor-pointer hover:bg-white/20' : ''
+    className={`px-2.5 py-1 rounded-md text-xs font-medium backdrop-blur-md bg-black/5 border border-black/10 text-slate-700 dark:bg-white/5 dark:border-white/10 dark:text-slate-200 flex items-center gap-1 transition-colors ${
+      onClick ? 'cursor-pointer hover:bg-black/10 dark:hover:bg-white/20' : ''
     } ${className}`}
   >
     {children}
@@ -125,7 +125,7 @@ const ChecklistItem = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className='w-5 h-5 rounded-full border-2 border-slate-700 dark:border-slate-700'
+              className='w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-700'
             />
           )}
         </AnimatePresence>
@@ -133,7 +133,9 @@ const ChecklistItem = ({
 
       <div
         className={`flex-1 transition-all duration-300 ${
-          status === 'waiting' ? 'text-slate-500' : 'text-slate-200'
+          status === 'waiting'
+            ? 'text-slate-500'
+            : 'text-slate-700 dark:text-slate-200'
         }`}
       >
         <span
@@ -1413,14 +1415,16 @@ function PlayPageClient() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className='w-full max-w-md bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden shadow-2xl p-8'
+            className='w-full max-w-md bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-2xl border border-black/10 dark:border-white/10 overflow-hidden shadow-2xl p-8'
           >
             <div className='mb-8 flex items-center gap-3'>
               <div className='relative'>
                 <div className='w-3 h-3 bg-green-500 rounded-full animate-ping absolute opacity-75' />
                 <div className='w-3 h-3 bg-green-500 rounded-full relative' />
               </div>
-              <h2 className='text-xl font-bold text-white'>正在准备播放资源</h2>
+              <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
+                正在准备播放资源
+              </h2>
             </div>
 
             <div className='flex flex-col gap-2'>
@@ -1466,7 +1470,7 @@ function PlayPageClient() {
           animate={{ opacity: 1, scale: 1 }}
           className='flex flex-col items-center justify-center min-h-[70vh] px-4'
         >
-          <div className='relative p-8 max-w-lg w-full bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden'>
+          <div className='relative p-8 max-w-lg w-full bg-white/85 dark:bg-slate-900/50 backdrop-blur-xl border border-black/10 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden'>
             {/* Background Gradient */}
             <div className='absolute inset-0 bg-gradient-to-br from-red-500/10 via-transparent to-transparent pointer-events-none' />
 
@@ -1479,16 +1483,18 @@ function PlayPageClient() {
                 <div className='text-4xl'>😵</div>
               </motion.div>
 
-              <h2 className='text-2xl font-bold text-white mb-2'>出错了</h2>
+              <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2'>
+                出错了
+              </h2>
 
-              <p className='text-slate-400 mb-8 max-w-sm mx-auto leading-relaxed'>
+              <p className='text-slate-600 dark:text-slate-400 mb-8 max-w-sm mx-auto leading-relaxed'>
                 {error}
               </p>
 
               <div className='flex gap-3 w-full'>
                 <button
                   onClick={() => window.location.reload()}
-                  className='flex-1 px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-all active:scale-95 border border-white/5'
+                  className='flex-1 px-4 py-3 bg-black/5 hover:bg-black/10 text-slate-800 rounded-xl font-medium transition-all active:scale-95 border border-black/10 dark:bg-white/10 dark:hover:bg-white/20 dark:text-white dark:border-white/5'
                 >
                   重试
                 </button>
@@ -1516,8 +1522,8 @@ function PlayPageClient() {
     <PageLayout activePath='/play'>
       {/* Background Image with Blur */}
       <div className='fixed inset-0 z-0 pointer-events-none overflow-hidden'>
-        <div className='absolute inset-0 bg-slate-950/90 mix-blend-multiply z-10' />
-        <div className='absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent z-10' />
+        <div className='absolute inset-0 bg-white/70 dark:bg-slate-950/90 mix-blend-normal dark:mix-blend-multiply z-10' />
+        <div className='absolute inset-0 bg-gradient-to-t from-white via-white/60 to-transparent dark:from-slate-950 dark:via-slate-950/50 z-10' />
         {videoCover && (
           <motion.img
             initial={{ opacity: 0, scale: 1.1 }}
@@ -1545,12 +1551,12 @@ function PlayPageClient() {
             <button
               aria-label='返回上一页'
               onClick={() => router.back()}
-              className='p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/80 hover:text-white transition-colors border border-white/5 backdrop-blur-sm'
+              className='p-2 rounded-full bg-black/5 hover:bg-black/10 text-slate-600 hover:text-slate-900 transition-colors border border-black/10 backdrop-blur-sm dark:bg-white/5 dark:hover:bg-white/10 dark:text-white/80 dark:hover:text-white dark:border-white/5'
             >
               <ArrowLeft size={20} />
             </button>
             <div className='flex flex-col min-w-0'>
-              <h1 className='text-xl lg:text-2xl font-bold text-white truncate flex items-center gap-2'>
+              <h1 className='text-xl lg:text-2xl font-bold text-gray-900 dark:text-white truncate flex items-center gap-2'>
                 {videoTitle || '影片标题'}
                 {totalEpisodes > 1 && (
                   <span className='px-2 py-0.5 rounded text-sm bg-green-500/20 text-green-400 font-medium border border-green-500/20 whitespace-nowrap'>
@@ -1558,16 +1564,18 @@ function PlayPageClient() {
                   </span>
                 )}
               </h1>
-              <div className='flex items-center gap-2 text-sm text-slate-400'>
+              <div className='flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400'>
                 {detail?.type_name && <span>{detail.type_name}</span>}
                 {detail?.year && (
                   <>
-                    <span className='w-1 h-1 rounded-full bg-slate-600' />
+                    <span className='w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-600' />
                     <span>{detail.year}</span>
                   </>
                 )}
-                <span className='w-1 h-1 rounded-full bg-slate-600' />
-                <span className='text-slate-300'>{detail?.source_name}</span>
+                <span className='w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-600' />
+                <span className='text-slate-700 dark:text-slate-300'>
+                  {detail?.source_name}
+                </span>
               </div>
             </div>
           </div>
@@ -1579,7 +1587,7 @@ function PlayPageClient() {
               className={`p-2.5 rounded-full transition-all duration-300 flex items-center justify-center border backdrop-blur-md ${
                 favorited
                   ? 'bg-red-500/10 border-red-500/30 text-red-500'
-                  : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white'
+                  : 'bg-black/5 border-black/10 text-slate-700 hover:bg-black/10 hover:text-slate-900 dark:bg-white/5 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white'
               }`}
             >
               <Heart
@@ -1617,7 +1625,7 @@ function PlayPageClient() {
             }`}
           >
             {/* Player Container */}
-            <div className='aspect-video w-full bg-black/60 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 relative group'>
+            <div className='aspect-video w-full bg-black/60 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-black/10 dark:ring-white/10 relative group'>
               <VideoPlayer
                 src={videoUrl}
                 title={detail?.title || 'Video'}
@@ -1713,10 +1721,10 @@ function PlayPageClient() {
             </div>
 
             {/* Video Info Card (Below Player) */}
-            <div className='bg-slate-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 hidden lg:block'>
+            <div className='bg-white/70 dark:bg-slate-900/40 backdrop-blur-md border border-black/10 dark:border-white/5 rounded-2xl p-6 hidden lg:block'>
               <div className='flex items-start gap-6'>
                 {/* Poster */}
-                <div className='w-24 shrink-0 aspect-[2/3] rounded-lg overflow-hidden relative shadow-lg ring-1 ring-white/10'>
+                <div className='w-24 shrink-0 aspect-[2/3] rounded-lg overflow-hidden relative shadow-lg ring-1 ring-black/10 dark:ring-white/10'>
                   <img
                     src={processImageUrl(videoCover)}
                     alt={videoTitle}
@@ -1741,7 +1749,7 @@ function PlayPageClient() {
                       </Badge>
                     )}
                   </div>
-                  <p className='text-slate-300 text-sm leading-relaxed line-clamp-3 hover:line-clamp-none transition-all cursor-pointer'>
+                  <p className='text-slate-700 dark:text-slate-300 text-sm leading-relaxed line-clamp-3 hover:line-clamp-none transition-all cursor-pointer'>
                     {detail?.desc || '暂无简介...'}
                   </p>
                 </div>
@@ -1749,7 +1757,7 @@ function PlayPageClient() {
                 <div className='flex flex-col gap-2 shrink-0'>
                   <button
                     onClick={handleToggleFavorite}
-                    className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium text-slate-300'
+                    className='flex items-center gap-2 px-4 py-2 rounded-lg bg-black/5 hover:bg-black/10 transition-colors text-sm font-medium text-slate-700 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-300'
                   >
                     <Heart
                       size={16}
@@ -1761,7 +1769,7 @@ function PlayPageClient() {
                     onClick={() =>
                       setIsEpisodeSelectorCollapsed(!isEpisodeSelectorCollapsed)
                     }
-                    className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium text-slate-300'
+                    className='flex items-center gap-2 px-4 py-2 rounded-lg bg-black/5 hover:bg-black/10 transition-colors text-sm font-medium text-slate-700 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-300'
                   >
                     {isEpisodeSelectorCollapsed ? (
                       <Layout size={16} />
@@ -1783,13 +1791,13 @@ function PlayPageClient() {
               isEpisodeSelectorCollapsed ? 'hidden lg:hidden' : 'lg:col-span-1'
             }`}
           >
-            <div className='bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden h-full flex flex-col shadow-xl'>
-              <div className='p-4 border-b border-white/5 flex items-center justify-between bg-white/5'>
-                <h3 className='font-semibold text-white flex items-center gap-2'>
+            <div className='bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-black/10 dark:border-white/10 rounded-2xl overflow-hidden h-full flex flex-col shadow-xl'>
+              <div className='p-4 border-b border-black/10 dark:border-white/5 flex items-center justify-between bg-black/5 dark:bg-white/5'>
+                <h3 className='font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
                   <Layers size={18} className='text-green-400' />
                   选集列表
                 </h3>
-                <span className='text-xs text-slate-400 font-mono bg-white/5 px-2 py-0.5 rounded'>
+                <span className='text-xs text-slate-600 dark:text-slate-400 font-mono bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded'>
                   {availableSources.length} 个源可用
                 </span>
               </div>
@@ -1815,9 +1823,11 @@ function PlayPageClient() {
           </motion.div>
 
           {/* Mobile Details Text (Below everything on mobile) */}
-          <div className='lg:hidden bg-slate-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-4 mt-4'>
-            <h2 className='text-lg font-bold text-white mb-2'>简介</h2>
-            <p className='text-slate-300 text-sm leading-relaxed'>
+          <div className='lg:hidden bg-white/80 dark:bg-slate-900/40 backdrop-blur-md border border-black/10 dark:border-white/5 rounded-2xl p-4 mt-4'>
+            <h2 className='text-lg font-bold text-gray-900 dark:text-white mb-2'>
+              简介
+            </h2>
+            <p className='text-slate-700 dark:text-slate-300 text-sm leading-relaxed'>
               {detail?.desc || '暂无简介...'}
             </p>
           </div>

@@ -13,10 +13,6 @@
   }
 }
 
-:root {
-  --foreground-rgb: 255, 255, 255;
-}
-
 html,
 body {
   height: 100%;
@@ -25,8 +21,12 @@ body {
   overscroll-behavior: none;
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
 }
 
 html:not(.dark) body {

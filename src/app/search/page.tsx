@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   addSearchHistory,
@@ -72,7 +72,7 @@ const Badge = ({
   className?: string;
 }) => (
   <span
-    className={`px-2 py-1 rounded-md text-xs font-medium backdrop-blur-md bg-white/10 border border-white/10 dark:bg-white/5 dark:border-white/10 ${className}`}
+    className={`px-2 py-1 rounded-md text-xs font-medium backdrop-blur-md bg-black/5 border border-black/10 text-slate-700 dark:bg-white/5 dark:border-white/10 dark:text-slate-200 ${className}`}
   >
     {children}
   </span>
@@ -132,7 +132,7 @@ const NewMovieCard: React.FC<{
       initial='hidden'
       animate='show'
       exit='exit'
-      className='group relative bg-slate-900/60 rounded-xl overflow-hidden border border-white/10 hover:border-green-400/50 dark:border-white/10 cursor-pointer flex flex-col h-full shadow-lg aspect-[2/3] hover:shadow-xl transition-shadow duration-300'
+      className='group relative bg-white/40 dark:bg-slate-900/60 rounded-xl overflow-hidden border border-black/10 dark:border-white/10 hover:border-green-400/50 cursor-pointer flex flex-col h-full shadow-lg aspect-[2/3] hover:shadow-xl transition-shadow duration-300'
       onClick={() => onClick(item)}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
@@ -378,7 +378,7 @@ const DetailModal = ({
         onClick={onClose}
       />
       <motion.div
-        className='relative w-full max-w-5xl bg-slate-900/90 rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex flex-col max-h-[90vh] backdrop-blur-xl dark:bg-slate-900/90'
+        className='relative w-full max-w-5xl bg-white/90 dark:bg-slate-900/90 rounded-2xl overflow-hidden border border-black/10 dark:border-white/10 shadow-2xl flex flex-col max-h-[90vh] backdrop-blur-xl'
         initial={{ opacity: 0, scale: 0.9, y: 50 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 50 }}
@@ -386,7 +386,7 @@ const DetailModal = ({
       >
         <button
           onClick={onClose}
-          className='absolute top-4 right-4 z-10 p-2 rounded-full bg-black/30 hover:bg-white/10 transition-colors text-white'
+          className='absolute top-4 right-4 z-10 p-2 rounded-full bg-black/5 hover:bg-black/10 text-gray-700 transition-colors dark:bg-black/30 dark:hover:bg-white/10 dark:text-white'
           aria-label='关闭'
         >
           <X size={24} />
@@ -394,14 +394,14 @@ const DetailModal = ({
 
         <div className='flex flex-col md:flex-row h-full overflow-hidden'>
           {/* Poster Section (Left/Top) */}
-          <div className='relative h-64 md:h-auto md:w-1/3 shrink-0 bg-black'>
+          <div className='relative h-64 md:h-auto md:w-1/3 shrink-0 bg-gray-200 dark:bg-black'>
             <motion.img
               layoutId={`poster-${item.id}-${item.source}`}
               src={item.poster}
               alt={item.title}
               className='w-full h-full object-cover'
             />
-            <div className='absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent md:bg-gradient-to-r' />
+            <div className='absolute inset-0 bg-gradient-to-t from-white/90 dark:from-slate-900 to-transparent md:bg-gradient-to-r' />
           </div>
 
           {/* Content Section (Right/Bottom) */}
@@ -411,11 +411,11 @@ const DetailModal = ({
                 <Badge className='text-green-400 border-green-400/30 bg-green-400/10'>
                   {item.type_name}
                 </Badge>
-                <span className='text-slate-400 text-sm flex items-center gap-1'>
+                <span className='text-slate-600 dark:text-slate-400 text-sm flex items-center gap-1'>
                   <Calendar size={14} /> {item.year || 'N/A'}
                 </span>
               </div>
-              <h2 className='text-3xl font-bold text-white mb-4'>
+              <h2 className='text-3xl font-bold text-gray-900 dark:text-white mb-4'>
                 {item.title}
               </h2>
 
@@ -424,24 +424,26 @@ const DetailModal = ({
                   item.class.split(',').map((c) => (
                     <span
                       key={c}
-                      className='text-sm text-slate-300 bg-slate-800 px-3 py-1 rounded-full'
+                      className='text-sm text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full'
                     >
                       {c.trim()}
                     </span>
                   ))}
               </div>
 
-              <p className='text-slate-300 leading-relaxed text-sm md:text-base'>
+              <p className='text-slate-700 dark:text-slate-300 leading-relaxed text-sm md:text-base'>
                 {item.desc || '暂无描述信息'}
               </p>
             </div>
 
-            <div className='border-t border-white/10 pt-6'>
+            <div className='border-t border-gray-200 dark:border-white/10 pt-6'>
               {isAutoRedirecting ? (
                 // 倒计时界面
                 <div className='flex flex-col items-center justify-center py-8 space-y-6'>
                   <div className='flex flex-col items-center gap-2'>
-                    <p className='text-slate-400 text-sm'>即将为您播放</p>
+                    <p className='text-slate-600 dark:text-slate-400 text-sm'>
+                      即将为您播放
+                    </p>
 
                     <div className='flex items-end gap-1 overflow-hidden h-16'>
                       <AnimatePresence mode='popLayout'>
@@ -476,7 +478,7 @@ const DetailModal = ({
                     </button>
                     <button
                       onClick={handleCancelAutoRedirect}
-                      className='flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl font-medium transition-all active:scale-95 border border-white/5'
+                      className='flex-1 px-4 py-3 bg-black/5 hover:bg-black/10 text-slate-700 hover:text-slate-900 rounded-xl font-medium transition-all active:scale-95 border border-black/10 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-300 dark:hover:text-white dark:border-white/5'
                     >
                       取消
                     </button>
@@ -486,7 +488,7 @@ const DetailModal = ({
                 // 选集列表界面
                 <>
                   <div className='flex items-center justify-between mb-4'>
-                    <h3 className='text-xl font-semibold text-white flex items-center gap-2'>
+                    <h3 className='text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
                       <Film size={20} className='text-green-400' />
                       选集播放
                       <span className='text-sm font-normal text-slate-500 ml-2'>
@@ -520,7 +522,7 @@ const DetailModal = ({
                             }`;
                             router.push(url);
                           }}
-                          className='block p-3 text-center rounded-lg bg-slate-800 hover:bg-green-500 hover:text-white transition-all text-sm font-medium border border-white/5 truncate dark:bg-slate-800 cursor-pointer'
+                          className='block p-3 text-center rounded-lg bg-slate-100 text-slate-700 hover:bg-green-500 hover:text-white transition-all text-sm font-medium border border-black/5 truncate dark:bg-slate-800 dark:text-slate-200 dark:border-white/5 cursor-pointer'
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
@@ -555,6 +557,14 @@ function SearchPageClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const searchEventSourceRef = useRef<EventSource | null>(null);
+  const activeSearchIdRef = useRef(0);
+
+  // 前端筛选（不影响后端请求）
+  const [yearFilter, setYearFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [genreFilter, setGenreFilter] = useState<string>('all');
+  const [episodesFilter, setEpisodesFilter] = useState<string>('all');
 
   // 搜索建议
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -576,10 +586,72 @@ function SearchPageClient() {
     return getDefaultAggregate() ? 'agg' : 'all';
   });
 
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    searchResults.forEach((r) => years.add(r.year || 'unknown'));
+    return Array.from(years).sort((a, b) => {
+      if (a === 'unknown' && b === 'unknown') return 0;
+      if (a === 'unknown') return 1;
+      if (b === 'unknown') return -1;
+      return parseInt(b) - parseInt(a);
+    });
+  }, [searchResults]);
+
+  const availableSources = useMemo(() => {
+    const map = new Map<string, string>();
+    searchResults.forEach((r) => {
+      if (!map.has(r.source)) map.set(r.source, r.source_name || r.source);
+    });
+    return Array.from(map.entries()).map(([key, name]) => ({ key, name }));
+  }, [searchResults]);
+
+  const availableGenres = useMemo(() => {
+    const genres = new Set<string>();
+    searchResults.forEach((r) => {
+      if (r.class) {
+        r.class.split(',').forEach((c) => {
+          const trimmed = c.trim();
+          if (trimmed) genres.add(trimmed);
+        });
+      }
+      if (r.type_name) {
+        genres.add(r.type_name);
+      }
+    });
+    return Array.from(genres).sort();
+  }, [searchResults]);
+
+  const filteredSearchResults = useMemo(() => {
+    return searchResults.filter((r) => {
+      if (yearFilter !== 'all' && (r.year || 'unknown') !== yearFilter)
+        return false;
+      if (sourceFilter !== 'all' && r.source !== sourceFilter) return false;
+
+      if (genreFilter !== 'all') {
+        const classes = r.class ? r.class.split(',').map((c) => c.trim()) : [];
+        const types = r.type_name ? [r.type_name] : [];
+        if (!classes.includes(genreFilter) && !types.includes(genreFilter))
+          return false;
+      }
+
+      if (episodesFilter !== 'all') {
+        const count = r.episodes.length;
+        if (episodesFilter === '1' && count !== 1) return false;
+        if (episodesFilter === 'short' && (count < 2 || count > 12))
+          return false;
+        if (episodesFilter === 'medium' && (count < 13 || count > 30))
+          return false;
+        if (episodesFilter === 'long' && count <= 30) return false;
+      }
+
+      return true;
+    });
+  }, [searchResults, sourceFilter, yearFilter, genreFilter, episodesFilter]);
+
   // 聚合后的结果（按标题和年份分组）
   const aggregatedResults = useMemo(() => {
     const map = new Map<string, SearchResult[]>();
-    searchResults.forEach((item) => {
+    filteredSearchResults.forEach((item) => {
       // 使用 title + year + type 作为键，year 必然存在，但依然兜底 'unknown'
       const key = `${item.title.replaceAll(' ', '')}-${
         item.year || 'unknown'
@@ -620,7 +692,7 @@ function SearchPageClient() {
         }
       }
     });
-  }, [searchResults]);
+  }, [filteredSearchResults, searchQuery]);
 
   // 搜索建议防抖
   useEffect(() => {
@@ -716,6 +788,13 @@ function SearchPageClient() {
   }, []);
 
   useEffect(() => {
+    return () => {
+      searchEventSourceRef.current?.close();
+      searchEventSourceRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     // 当搜索参数变化时更新搜索状态
     const query = searchParams.get('q');
     if (query) {
@@ -733,54 +812,152 @@ function SearchPageClient() {
   }, [searchParams]);
 
   const fetchSearchResults = async (query: string) => {
-    try {
-      setIsLoading(true);
-      const response = await fetch(
-        `/api/search?q=${encodeURIComponent(query.trim())}`
-      );
-      const data = await response.json();
-      let results = data.results;
+    const trimmedQuery = query.trim();
+    activeSearchIdRef.current += 1;
+    const searchId = activeSearchIdRef.current;
+    let stopLoadingInFinally = true;
+
+    const closeActiveStream = () => {
+      searchEventSourceRef.current?.close();
+      searchEventSourceRef.current = null;
+    };
+
+    const sortResults = (results: SearchResult[]) => {
+      return [...results].sort((a: SearchResult, b: SearchResult) => {
+        // 优先排序：标题与搜索词完全一致的排在前面
+        const aExactMatch = a.title === trimmedQuery;
+        const bExactMatch = b.title === trimmedQuery;
+
+        if (aExactMatch && !bExactMatch) return -1;
+        if (!aExactMatch && bExactMatch) return 1;
+
+        // 如果都匹配或都不匹配，则按原来的逻辑排序
+        if (a.year === b.year) {
+          return a.title.localeCompare(b.title);
+        } else {
+          // 处理 unknown 的情况
+          if (a.year === 'unknown' && b.year === 'unknown') {
+            return 0;
+          } else if (a.year === 'unknown') {
+            return 1; // a 排在后面
+          } else if (b.year === 'unknown') {
+            return -1; // b 排在后面
+          } else {
+            // 都是数字年份，按数字大小排序（大的在前面）
+            return parseInt(a.year) > parseInt(b.year) ? -1 : 1;
+          }
+        }
+      });
+    };
+
+    const applyYellowFilterIfNeeded = (results: SearchResult[]) => {
       if (
         typeof window !== 'undefined' &&
         !(window as any).RUNTIME_CONFIG?.DISABLE_YELLOW_FILTER
       ) {
-        results = results.filter((result: SearchResult) => {
+        return results.filter((result: SearchResult) => {
           const typeName = result.type_name || '';
           return !yellowWords.some((word: string) => typeName.includes(word));
         });
       }
-      setSearchResults(
-        results.sort((a: SearchResult, b: SearchResult) => {
-          // 优先排序：标题与搜索词完全一致的排在前面
-          const aExactMatch = a.title === query.trim();
-          const bExactMatch = b.title === query.trim();
+      return results;
+    };
 
-          if (aExactMatch && !bExactMatch) return -1;
-          if (!aExactMatch && bExactMatch) return 1;
-
-          // 如果都匹配或都不匹配，则按原来的逻辑排序
-          if (a.year === b.year) {
-            return a.title.localeCompare(b.title);
-          } else {
-            // 处理 unknown 的情况
-            if (a.year === 'unknown' && b.year === 'unknown') {
-              return 0;
-            } else if (a.year === 'unknown') {
-              return 1; // a 排在后面
-            } else if (b.year === 'unknown') {
-              return -1; // b 排在后面
-            } else {
-              // 都是数字年份，按数字大小排序（大的在前面）
-              return parseInt(a.year) > parseInt(b.year) ? -1 : 1;
-            }
-          }
-        })
+    const fetchJsonFallback = async () => {
+      const response = await fetch(
+        `/api/search?q=${encodeURIComponent(trimmedQuery)}`
       );
+      if (!response.ok) throw new Error('搜索失败');
+      const data = await response.json();
+      let results = data.results as SearchResult[];
+      results = applyYellowFilterIfNeeded(results);
+      setSearchResults(sortResults(results));
       setShowResults(true);
+    };
+
+    try {
+      setIsLoading(true);
+      closeActiveStream();
+      setSearchResults([]);
+      setShowResults(true);
+      setYearFilter('all');
+      setSourceFilter('all');
+      setGenreFilter('all');
+      setEpisodesFilter('all');
+
+      if (typeof EventSource === 'undefined') {
+        await fetchJsonFallback();
+        return;
+      }
+
+      let receivedAny = false;
+      const mergedKey = (r: SearchResult) => `${r.source}:${r.id}`;
+
+      const es = new EventSource(
+        `/api/search?q=${encodeURIComponent(trimmedQuery)}&stream=1`
+      );
+      searchEventSourceRef.current = es;
+      stopLoadingInFinally = false;
+      let finished = false;
+
+      const onChunk = (event: MessageEvent) => {
+        if (activeSearchIdRef.current !== searchId) return;
+        receivedAny = true;
+        const payload = JSON.parse(event.data) as {
+          results: SearchResult[];
+        };
+        const incoming = applyYellowFilterIfNeeded(payload.results || []);
+        if (incoming.length === 0) return;
+
+        setSearchResults((prev) => {
+          const map = new Map<string, SearchResult>();
+          prev.forEach((r) => map.set(mergedKey(r), r));
+          incoming.forEach((r) => map.set(mergedKey(r), r));
+          return sortResults(Array.from(map.values()));
+        });
+      };
+
+      const onDone = () => {
+        if (activeSearchIdRef.current !== searchId) return;
+        if (finished) return;
+        finished = true;
+        es.close();
+        if (searchEventSourceRef.current === es) {
+          searchEventSourceRef.current = null;
+        }
+        setIsLoading(false);
+      };
+
+      const onError = async () => {
+        if (activeSearchIdRef.current !== searchId) return;
+        if (finished) return;
+        finished = true;
+        es.close();
+        if (searchEventSourceRef.current === es) {
+          searchEventSourceRef.current = null;
+        }
+        try {
+          if (!receivedAny) {
+            await fetchJsonFallback();
+          }
+        } catch (e) {
+          setSearchResults([]);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      es.addEventListener('chunk', onChunk as unknown as EventListener);
+      es.addEventListener('done', onDone as unknown as EventListener);
+      es.addEventListener('abort', onError as unknown as EventListener);
+      es.onerror = onError;
     } catch (error) {
       setSearchResults([]);
+      if (activeSearchIdRef.current === searchId) setIsLoading(false);
     } finally {
-      setIsLoading(false);
+      if (stopLoadingInFinally && activeSearchIdRef.current === searchId) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -886,6 +1063,8 @@ function SearchPageClient() {
                                 target.cover_url
                               }
                               alt={target.title}
+                              width={48}
+                              height={64}
                               className='w-12 h-16 object-cover rounded-md'
                             />
                             <div className='flex-1 min-w-0'>
@@ -921,45 +1100,198 @@ function SearchPageClient() {
 
         {/* 搜索结果或搜索历史 */}
         <div className='max-w-full mx-auto mt-12 overflow-visible'>
-          {isLoading ? (
-            <div className='flex justify-center items-center h-40'>
-              <Loader2 className='animate-spin text-green-500' size={40} />
-            </div>
-          ) : showResults ? (
+          {showResults ? (
             <section className='mb-12'>
-              {/* 标题 + 聚合开关 */}
-              <div className='mb-8 flex items-center justify-between'>
-                <h2 className='text-2xl font-bold text-white flex items-center gap-2'>
+              {/* 标题 & 聚合开关 */}
+              <div className='flex items-center justify-between mb-6'>
+                <h2 className='text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2'>
                   <span className='w-1.5 h-8 bg-gradient-to-b from-green-400 to-green-600 rounded-full block'></span>
                   搜索结果
-                  <span className='text-sm font-normal text-slate-500 ml-2 bg-slate-900/50 px-3 py-1 rounded-full border border-white/5'>
-                    {searchResults.length} 个资源
+                  <span className='hidden sm:flex text-sm font-normal text-slate-600 dark:text-slate-400 ml-2 bg-black/5 dark:bg-slate-900/50 px-3 py-1 rounded-full border border-black/10 dark:border-white/10 items-center gap-2'>
+                    {filteredSearchResults.length !== searchResults.length
+                      ? `${filteredSearchResults.length} / ${searchResults.length}`
+                      : searchResults.length}{' '}
+                    个资源
+                    {isLoading && (
+                      <Loader2
+                        className='animate-spin text-green-500'
+                        size={14}
+                      />
+                    )}
                   </span>
                 </h2>
-                {/* 聚合开关 */}
-                <label className='flex items-center gap-2 cursor-pointer select-none'>
-                  <span className='text-sm text-gray-300 dark:text-gray-400'>
-                    聚合
-                  </span>
-                  <div className='relative'>
-                    <input
-                      type='checkbox'
-                      className='sr-only peer'
-                      checked={viewMode === 'agg'}
-                      onChange={() => {
-                        setViewMode(viewMode === 'agg' ? 'all' : 'agg');
-                        if (typeof window !== 'undefined') {
-                          localStorage.setItem(
-                            'defaultAggregateSearch',
-                            JSON.stringify(viewMode === 'all')
-                          );
-                        }
+
+                <div className='flex items-center gap-4'>
+                  <label className='flex items-center gap-2 cursor-pointer select-none bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-full border border-black/5 dark:border-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors'>
+                    <span className='text-xs sm:text-sm text-gray-700 dark:text-gray-300 font-medium'>
+                      聚合展示
+                    </span>
+                    <div className='relative'>
+                      <input
+                        type='checkbox'
+                        className='sr-only peer'
+                        checked={viewMode === 'agg'}
+                        onChange={() => {
+                          setViewMode(viewMode === 'agg' ? 'all' : 'agg');
+                          if (typeof window !== 'undefined') {
+                            localStorage.setItem(
+                              'defaultAggregateSearch',
+                              JSON.stringify(viewMode === 'all')
+                            );
+                          }
+                        }}
+                      />
+                      <div className='w-9 h-5 bg-gray-200 dark:bg-gray-600 rounded-full peer-checked:bg-green-500 transition-colors'></div>
+                      <div className='absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4'></div>
+                    </div>
+                  </label>
+
+                  {(yearFilter !== 'all' ||
+                    sourceFilter !== 'all' ||
+                    genreFilter !== 'all' ||
+                    episodesFilter !== 'all') && (
+                    <button
+                      onClick={() => {
+                        setYearFilter('all');
+                        setSourceFilter('all');
+                        setGenreFilter('all');
+                        setEpisodesFilter('all');
                       }}
-                    />
-                    <div className='w-9 h-5 bg-gray-600 rounded-full peer-checked:bg-green-500 transition-colors dark:bg-gray-600'></div>
-                    <div className='absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4'></div>
+                      className='text-xs sm:text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium px-2'
+                    >
+                      重置筛选
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 新版筛选区 - 类似 Chips 风格 */}
+              <div className='mb-8 bg-white/50 dark:bg-slate-900/50 rounded-xl border border-black/5 dark:border-white/5 backdrop-blur-sm p-4 flex flex-col gap-4'>
+                {/* 1. 年份筛选 */}
+                <div className='flex items-center gap-3 overflow-hidden'>
+                  <span className='text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0 w-12'>
+                    年份
+                  </span>
+                  <div className='flex gap-2 overflow-x-auto pb-1 scrollbar-hide'>
+                    <button
+                      onClick={() => setYearFilter('all')}
+                      className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                        yearFilter === 'all'
+                          ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
+                          : 'bg-black/5 text-slate-600 hover:bg-black/10 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white'
+                      }`}
+                    >
+                      全部
+                    </button>
+                    {availableYears.map((y) => (
+                      <button
+                        key={y}
+                        onClick={() => setYearFilter(y)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                          yearFilter === y
+                            ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
+                            : 'bg-black/5 text-slate-600 hover:bg-black/10 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white'
+                        }`}
+                      >
+                        {y === 'unknown' ? '未知' : y}
+                      </button>
+                    ))}
                   </div>
-                </label>
+                </div>
+
+                {/* 2. 题材筛选 */}
+                {availableGenres.length > 0 && (
+                  <div className='flex items-center gap-3 overflow-hidden'>
+                    <span className='text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0 w-12'>
+                      题材
+                    </span>
+                    <div className='flex gap-2 overflow-x-auto pb-1 scrollbar-hide'>
+                      <button
+                        onClick={() => setGenreFilter('all')}
+                        className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                          genreFilter === 'all'
+                            ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
+                            : 'bg-black/5 text-slate-600 hover:bg-black/10 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white'
+                        }`}
+                      >
+                        全部
+                      </button>
+                      {availableGenres.map((g) => (
+                        <button
+                          key={g}
+                          onClick={() => setGenreFilter(g)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                            genreFilter === g
+                              ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
+                              : 'bg-black/5 text-slate-600 hover:bg-black/10 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white'
+                          }`}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. 集数区间 */}
+                <div className='flex items-center gap-3 overflow-hidden'>
+                  <span className='text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0 w-12'>
+                    片长
+                  </span>
+                  <div className='flex gap-2 overflow-x-auto pb-1 scrollbar-hide'>
+                    {[
+                      { label: '全部', value: 'all' },
+                      { label: '电影/单集', value: '1' },
+                      { label: '短剧 (2-12)', value: 'short' },
+                      { label: '中长篇 (13-30)', value: 'medium' },
+                      { label: '长篇剧集 (30+)', value: 'long' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setEpisodesFilter(opt.value)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                          episodesFilter === opt.value
+                            ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
+                            : 'bg-black/5 text-slate-600 hover:bg-black/10 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 4. 来源筛选 */}
+                <div className='flex items-center gap-3 overflow-hidden'>
+                  <span className='text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider shrink-0 w-12'>
+                    来源
+                  </span>
+                  <div className='flex gap-2 overflow-x-auto pb-1 scrollbar-hide'>
+                    <button
+                      onClick={() => setSourceFilter('all')}
+                      className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                        sourceFilter === 'all'
+                          ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
+                          : 'bg-black/5 text-slate-600 hover:bg-black/10 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white'
+                      }`}
+                    >
+                      全部
+                    </button>
+                    {availableSources.map((s) => (
+                      <button
+                        key={s.key}
+                        onClick={() => setSourceFilter(s.key)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                          sourceFilter === s.key
+                            ? 'bg-green-500 text-white shadow-md shadow-green-500/20'
+                            : 'bg-black/5 text-slate-600 hover:bg-black/10 dark:bg-white/5 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white'
+                        }`}
+                      >
+                        {s.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Results Grid with Animation */}
@@ -989,21 +1321,35 @@ function SearchPageClient() {
                           exit={{ opacity: 0, filter: 'blur(10px)' }}
                           className='col-span-full flex flex-col items-center justify-center py-32 text-slate-600'
                         >
-                          <Search
-                            size={64}
-                            strokeWidth={1}
-                            className='mb-4 opacity-50'
-                          />
-                          <p className='text-xl font-medium text-white'>
-                            没有找到相关资源
-                          </p>
-                          <p className='text-sm mt-2 text-slate-400'>
-                            换个关键词试试看吧
-                          </p>
+                          {isLoading ? (
+                            <>
+                              <Loader2
+                                className='animate-spin text-green-500 mb-4'
+                                size={48}
+                              />
+                              <p className='text-sm mt-2 text-slate-500 dark:text-slate-400'>
+                                正在搜索中…有结果会立刻显示
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <Search
+                                size={64}
+                                strokeWidth={1}
+                                className='mb-4 opacity-50'
+                              />
+                              <p className='text-xl font-medium text-gray-900 dark:text-white'>
+                                没有找到相关资源
+                              </p>
+                              <p className='text-sm mt-2 text-slate-500 dark:text-slate-400'>
+                                换个关键词试试看吧
+                              </p>
+                            </>
+                          )}
                         </motion.div>
                       )
-                    ) : searchResults.length > 0 ? (
-                      searchResults.map((item) => (
+                    ) : filteredSearchResults.length > 0 ? (
+                      filteredSearchResults.map((item) => (
                         <NewMovieCard
                           key={`all-${item.source}-${item.id}`}
                           item={item}
@@ -1018,17 +1364,31 @@ function SearchPageClient() {
                         exit={{ opacity: 0, filter: 'blur(10px)' }}
                         className='col-span-full flex flex-col items-center justify-center py-32 text-slate-600'
                       >
-                        <Search
-                          size={64}
-                          strokeWidth={1}
-                          className='mb-4 opacity-50'
-                        />
-                        <p className='text-xl font-medium text-white'>
-                          没有找到相关资源
-                        </p>
-                        <p className='text-sm mt-2 text-slate-400'>
-                          换个关键词试试看吧
-                        </p>
+                        {isLoading ? (
+                          <>
+                            <Loader2
+                              className='animate-spin text-green-500 mb-4'
+                              size={48}
+                            />
+                            <p className='text-sm mt-2 text-slate-500 dark:text-slate-400'>
+                              正在搜索中…有结果会立刻显示
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <Search
+                              size={64}
+                              strokeWidth={1}
+                              className='mb-4 opacity-50'
+                            />
+                            <p className='text-xl font-medium text-gray-900 dark:text-white'>
+                              没有找到相关资源
+                            </p>
+                            <p className='text-sm mt-2 text-slate-500 dark:text-slate-400'>
+                              换个关键词试试看吧
+                            </p>
+                          </>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -1041,16 +1401,16 @@ function SearchPageClient() {
               {searchRank.length > 0 && (
                 <section className='mb-14'>
                   <div className='flex items-center justify-between mb-6'>
-                    <h2 className='text-3xl font-extrabold text-white flex items-center gap-3'>
+                    <h2 className='text-3xl font-extrabold text-gray-900 dark:text-white flex items-center gap-3'>
                       <span className='w-2 h-9 bg-red-600 rounded-sm block shadow-[0_0_15px_rgba(220,38,38,0.5)]'></span>
                       今日 Top 排行
-                      <span className='text-xs font-medium text-slate-500 uppercase tracking-tighter ml-2 bg-white/5 px-2 py-1 rounded border border-white/5'>
+                      <span className='text-xs font-medium text-slate-600 dark:text-slate-500 uppercase tracking-tighter ml-2 bg-black/5 dark:bg-white/5 px-2 py-1 rounded border border-black/10 dark:border-white/5'>
                         Trending Today
                       </span>
                     </h2>
                     <button
                       onClick={() => getSearchRank().then(setSearchRank)}
-                      className='flex items-center gap-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all text-sm group'
+                      className='flex items-center gap-2 p-2 rounded-lg bg-black/5 hover:bg-black/10 text-slate-600 hover:text-slate-900 transition-all text-sm group dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-400 dark:hover:text-white'
                     >
                       <RefreshCw
                         size={14}

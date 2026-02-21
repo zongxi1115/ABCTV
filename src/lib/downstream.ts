@@ -15,9 +15,46 @@ interface ApiSearchItem {
   type_name?: string;
 }
 
+type SearchFromApiOptions = {
+  signal?: AbortSignal;
+  onPage?: (pageResults: SearchResult[]) => void;
+};
+
+async function fetchWithTimeout(
+  url: string,
+  options: {
+    headers?: HeadersInit;
+    timeoutMs: number;
+    signal?: AbortSignal;
+  }
+) {
+  const controller = new AbortController();
+  const abortListener = () => controller.abort();
+
+  if (options.signal) {
+    if (options.signal.aborted) controller.abort();
+    else
+      options.signal.addEventListener('abort', abortListener, { once: true });
+  }
+
+  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs);
+  try {
+    return await fetch(url, {
+      headers: options.headers,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+    if (options.signal) {
+      options.signal.removeEventListener('abort', abortListener);
+    }
+  }
+}
+
 export async function searchFromApi(
   apiSite: ApiSite,
-  query: string
+  query: string,
+  options?: SearchFromApiOptions
 ): Promise<SearchResult[]> {
   try {
     const apiBaseUrl = apiSite.api;
@@ -25,16 +62,11 @@ export async function searchFromApi(
       apiBaseUrl + API_CONFIG.search.path + encodeURIComponent(query);
     const apiName = apiSite.name;
 
-    // 添加超时处理
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-    const response = await fetch(apiUrl, {
+    const response = await fetchWithTimeout(apiUrl, {
       headers: API_CONFIG.search.headers,
-      signal: controller.signal,
+      timeoutMs: 8000,
+      signal: options?.signal,
     });
-
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       return [];
@@ -50,7 +82,7 @@ export async function searchFromApi(
       return [];
     }
     // 处理第一页结果
-    const results = data.list.map((item: ApiSearchItem) => {
+    const firstPageResults = data.list.map((item: ApiSearchItem) => {
       let episodes: string[] = [];
 
       // 使用正则表达式从 vod_play_url 提取 m3u8 链接
@@ -90,6 +122,9 @@ export async function searchFromApi(
       };
     });
 
+    if (firstPageResults.length > 0) options?.onPage?.(firstPageResults);
+    const results = [...firstPageResults];
+
     const config = await getConfig();
     const MAX_SEARCH_PAGES: number = config.SiteConfig.SearchDownstreamMaxPage;
 
@@ -111,18 +146,11 @@ export async function searchFromApi(
 
         const pagePromise = (async () => {
           try {
-            const pageController = new AbortController();
-            const pageTimeoutId = setTimeout(
-              () => pageController.abort(),
-              8000
-            );
-
-            const pageResponse = await fetch(pageUrl, {
+            const pageResponse = await fetchWithTimeout(pageUrl, {
               headers: API_CONFIG.search.headers,
-              signal: pageController.signal,
+              timeoutMs: 8000,
+              signal: options?.signal,
             });
-
-            clearTimeout(pageTimeoutId);
 
             if (!pageResponse.ok) return [];
 
@@ -131,7 +159,7 @@ export async function searchFromApi(
             if (!pageData || !pageData.list || !Array.isArray(pageData.list))
               return [];
 
-            return pageData.list.map((item: ApiSearchItem) => {
+            const pageResults = pageData.list.map((item: ApiSearchItem) => {
               let episodes: string[] = [];
 
               // 使用正则表达式从 vod_play_url 提取 m3u8 链接
@@ -162,6 +190,9 @@ export async function searchFromApi(
                 douban_id: item.vod_douban_id,
               };
             });
+
+            if (pageResults.length > 0) options?.onPage?.(pageResults);
+            return pageResults;
           } catch (error) {
             return [];
           }
