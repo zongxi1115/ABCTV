@@ -43,14 +43,33 @@ export async function middleware(request: NextRequest) {
 
   // 验证签名（如果存在）
   if (authInfo.signature) {
+    const signPayload = authInfo.sid
+      ? `${authInfo.username}:${authInfo.sid}`
+      : authInfo.username;
     const isValidSignature = await verifySignature(
-      authInfo.username,
+      signPayload,
       authInfo.signature,
       process.env.PASSWORD || ''
     );
 
     // 签名验证通过即可
     if (isValidSignature) {
+      // 会话校验（MAX_DEVICE=0 时 /api/session/validate 会直接放行）
+      try {
+        const validateUrl = new URL('/api/session/validate', request.url);
+        const resp = await fetch(validateUrl, {
+          headers: {
+            cookie: request.headers.get('cookie') || '',
+          },
+          cache: 'no-store',
+        });
+        if (!resp.ok) {
+          return handleAuthFailure(request, pathname);
+        }
+      } catch (e) {
+        console.error('会话校验失败:', e);
+        return handleAuthFailure(request, pathname);
+      }
       return NextResponse.next();
     }
   }
@@ -133,6 +152,6 @@ function shouldSkipAuth(pathname: string): boolean {
 // 配置middleware匹配规则
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|login|warning|api/login|api/register|api/logout|api/cron|api/server-config).*)',
+    '/((?!_next/static|_next/image|favicon.ico|login|warning|api/login|api/register|api/logout|api/cron|api/server-config|api/session/validate).*)',
   ],
 };

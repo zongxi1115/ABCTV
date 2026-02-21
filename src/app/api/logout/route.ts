@@ -1,8 +1,19 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+import { getAuthInfoFromCookie } from '@/lib/auth';
+import { db } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  try {
+    const authInfo = getAuthInfoFromCookie(request);
+    if (authInfo?.username && authInfo.sid) {
+      await db.deleteSession(authInfo.username, authInfo.sid);
+    }
+  } catch {
+    // ignore
+  }
   const response = NextResponse.json({ ok: true });
 
   // 清除认证cookie

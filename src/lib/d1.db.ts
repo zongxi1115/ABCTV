@@ -50,12 +50,35 @@ function getD1Database(): D1Database {
 
 export class D1Storage implements IStorage {
   private db: D1Database | null = null;
+  private sessionsTableReady = false;
 
   private async getDatabase(): Promise<D1Database> {
     if (!this.db) {
       this.db = getD1Database();
     }
     return this.db;
+  }
+
+  private async ensureSessionsTable(): Promise<void> {
+    if (this.sessionsTableReady) return;
+    const db = await this.getDatabase();
+    try {
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS user_sessions (
+          username TEXT NOT NULL,
+          sid TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          PRIMARY KEY (username, sid)
+        );
+      `);
+      await db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_user_sessions_username_created_at ON user_sessions(username, created_at DESC);'
+      );
+      this.sessionsTableReady = true;
+    } catch (err) {
+      console.error('Failed to ensure sessions table:', err);
+      // 不抛出：避免影响主流程（例如未授予 DDL 权限的环境）
+    }
   }
 
   // 播放记录相关
@@ -337,6 +360,7 @@ export class D1Storage implements IStorage {
   async deleteUser(userName: string): Promise<void> {
     try {
       const db = await this.getDatabase();
+      await this.ensureSessionsTable();
       const statements = [
         db.prepare('DELETE FROM users WHERE username = ?').bind(userName),
         db
@@ -345,6 +369,9 @@ export class D1Storage implements IStorage {
         db.prepare('DELETE FROM favorites WHERE username = ?').bind(userName),
         db
           .prepare('DELETE FROM search_history WHERE username = ?')
+          .bind(userName),
+        db
+          .prepare('DELETE FROM user_sessions WHERE username = ?')
           .bind(userName),
         db
           .prepare('DELETE FROM skip_configs WHERE username = ?')
@@ -356,6 +383,70 @@ export class D1Storage implements IStorage {
       console.error('Failed to delete user:', err);
       throw err;
     }
+  }
+
+  // ---------- 会话 / 设备限制 ----------
+  async createSession(
+    userName: string,
+    sessionId: string,
+    maxDevices: number
+  ): Promise<void> {
+    const sid = String(sessionId || '').trim();
+    if (!sid) return;
+
+    const safeMax = Number(maxDevices) || 0;
+    if (safeMax <= 0) return;
+
+    const db = await this.getDatabase();
+    await this.ensureSessionsTable();
+
+    const now = Date.now();
+    await db
+      .prepare(
+        'INSERT OR REPLACE INTO user_sessions (username, sid, created_at) VALUES (?, ?, ?)'
+      )
+      .bind(userName, sid, now)
+      .run();
+
+    // 保留最近 N 个会话，删除更旧的
+    await db
+      .prepare(
+        `
+        DELETE FROM user_sessions
+        WHERE username = ?
+          AND sid NOT IN (
+            SELECT sid FROM user_sessions
+            WHERE username = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+          )
+      `
+      )
+      .bind(userName, userName, safeMax)
+      .run();
+  }
+
+  async validateSession(userName: string, sessionId: string): Promise<boolean> {
+    const sid = String(sessionId || '').trim();
+    if (!sid) return false;
+    const db = await this.getDatabase();
+    await this.ensureSessionsTable();
+    const result = await db
+      .prepare('SELECT 1 FROM user_sessions WHERE username = ? AND sid = ?')
+      .bind(userName, sid)
+      .first();
+    return result !== null;
+  }
+
+  async deleteSession(userName: string, sessionId: string): Promise<void> {
+    const sid = String(sessionId || '').trim();
+    if (!sid) return;
+    const db = await this.getDatabase();
+    await this.ensureSessionsTable();
+    await db
+      .prepare('DELETE FROM user_sessions WHERE username = ? AND sid = ?')
+      .bind(userName, sid)
+      .run();
   }
 
   // 搜索历史相关

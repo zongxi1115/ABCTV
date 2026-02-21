@@ -52,9 +52,15 @@ async function generateAuthCookie(username: string): Promise<string> {
     timestamp: Date.now(),
   };
 
+  const sid =
+    typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : String(Date.now());
+  authData.sid = sid;
+
   // 使用process.env.PASSWORD作为签名密钥，而不是用户密码
   const signingKey = process.env.PASSWORD || '';
-  const signature = await generateSignature(username, signingKey);
+  const signature = await generateSignature(`${username}:${sid}`, signingKey);
   authData.signature = signature;
 
   return encodeURIComponent(JSON.stringify(authData));
@@ -116,7 +122,20 @@ export async function POST(req: NextRequest) {
 
       // 注册成功，设置认证cookie
       const response = NextResponse.json({ ok: true });
+      const maxDevicesRaw = Number((config as any)?.SiteConfig?.MaxDevice || 0);
+      const maxDevices = Number.isFinite(maxDevicesRaw)
+        ? Math.max(0, Math.min(Math.floor(maxDevicesRaw), 50))
+        : 0;
+
       const cookieValue = await generateAuthCookie(username);
+      try {
+        const decoded = JSON.parse(decodeURIComponent(cookieValue));
+        if (maxDevices > 0 && decoded?.sid) {
+          await db.createSession(username, decoded.sid, maxDevices);
+        }
+      } catch (e) {
+        console.error('创建会话失败:', e);
+      }
       const expires = new Date();
       expires.setDate(expires.getDate() + 7); // 7天过期
 

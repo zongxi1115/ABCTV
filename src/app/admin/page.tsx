@@ -25,7 +25,9 @@ import {
   ChevronDown,
   ChevronUp,
   FolderOpen,
+  History,
   Settings,
+  Trash2,
   Users,
   Video,
 } from 'lucide-react';
@@ -57,6 +59,7 @@ interface SiteConfig {
   Announcement: string;
   SearchDownstreamMaxPage: number;
   SiteInterfaceCacheTime: number;
+  MaxDevice: number;
   ImageProxy: string;
   DoubanProxy: string;
   DisableYellowFilter: boolean;
@@ -143,14 +146,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
 
   // 当前登录用户名
   const currentUsername = getAuthInfoFromBrowserCookie()?.username || null;
-
-  // 检测存储类型是否为 d1
-  const isD1Storage =
-    typeof window !== 'undefined' &&
-    (window as any).RUNTIME_CONFIG?.STORAGE_TYPE === 'd1';
-  const isUpstashStorage =
-    typeof window !== 'undefined' &&
-    (window as any).RUNTIME_CONFIG?.STORAGE_TYPE === 'upstash';
+  const maxDevice = Number((config as any)?.SiteConfig?.MaxDevice || 0) || 0;
 
   useEffect(() => {
     if (config?.UserConfig) {
@@ -311,38 +307,17 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
           注册设置
         </h4>
         <div className='flex items-center justify-between'>
-          <label
-            className={`text-gray-700 dark:text-gray-300 ${
-              isD1Storage || isUpstashStorage ? 'opacity-50' : ''
-            }`}
-          >
+          <label className='text-gray-700 dark:text-gray-300'>
             允许新用户注册
-            {isD1Storage && (
-              <span className='ml-2 text-xs text-gray-500 dark:text-gray-400'>
-                (D1 环境下请通过环境变量修改)
-              </span>
-            )}
-            {isUpstashStorage && (
-              <span className='ml-2 text-xs text-gray-500 dark:text-gray-400'>
-                (Upstash 环境下请通过环境变量修改)
-              </span>
-            )}
           </label>
           <button
             onClick={() =>
-              !isD1Storage &&
-              !isUpstashStorage &&
               toggleAllowRegister(!userSettings.enableRegistration)
             }
-            disabled={isD1Storage || isUpstashStorage}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
               userSettings.enableRegistration
                 ? 'bg-green-600'
                 : 'bg-gray-200 dark:bg-gray-700'
-            } ${
-              isD1Storage || isUpstashStorage
-                ? 'opacity-50 cursor-not-allowed'
-                : ''
             }`}
           >
             <span
@@ -354,6 +329,10 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
             />
           </button>
         </div>
+        <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>
+          最大同时在线设备数（站点配置）：
+          {maxDevice > 0 ? ` ${maxDevice}` : ' 不限制'}
+        </p>
       </div>
 
       {/* 用户列表 */}
@@ -1355,6 +1334,7 @@ const SiteConfigComponent = ({ config }: { config: AdminConfig | null }) => {
     Announcement: '',
     SearchDownstreamMaxPage: 1,
     SiteInterfaceCacheTime: 7200,
+    MaxDevice: 0,
     ImageProxy: '',
     DoubanProxy: '',
     DisableYellowFilter: false,
@@ -1362,18 +1342,11 @@ const SiteConfigComponent = ({ config }: { config: AdminConfig | null }) => {
   // 保存状态
   const [saving, setSaving] = useState(false);
 
-  // 检测存储类型是否为 d1 或 upstash
-  const isD1Storage =
-    typeof window !== 'undefined' &&
-    (window as any).RUNTIME_CONFIG?.STORAGE_TYPE === 'd1';
-  const isUpstashStorage =
-    typeof window !== 'undefined' &&
-    (window as any).RUNTIME_CONFIG?.STORAGE_TYPE === 'upstash';
-
   useEffect(() => {
     if (config?.SiteConfig) {
       setSiteSettings({
         ...config.SiteConfig,
+        MaxDevice: Number((config.SiteConfig as any).MaxDevice || 0) || 0,
         ImageProxy: config.SiteConfig.ImageProxy || '',
         DoubanProxy: config.SiteConfig.DoubanProxy || '',
         DisableYellowFilter: config.SiteConfig.DisableYellowFilter || false,
@@ -1416,76 +1389,34 @@ const SiteConfigComponent = ({ config }: { config: AdminConfig | null }) => {
     <div className='space-y-6'>
       {/* 站点名称 */}
       <div>
-        <label
-          className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${
-            isD1Storage || isUpstashStorage ? 'opacity-50' : ''
-          }`}
-        >
+        <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
           站点名称
-          {isD1Storage && (
-            <span className='ml-2 text-xs text-gray-500 dark:text-gray-400'>
-              (D1 环境下请通过环境变量修改)
-            </span>
-          )}
-          {isUpstashStorage && (
-            <span className='ml-2 text-xs text-gray-500 dark:text-gray-400'>
-              (Upstash 环境下请通过环境变量修改)
-            </span>
-          )}
         </label>
         <input
           type='text'
           value={siteSettings.SiteName}
           onChange={(e) =>
-            !isD1Storage &&
-            !isUpstashStorage &&
             setSiteSettings((prev) => ({ ...prev, SiteName: e.target.value }))
           }
-          disabled={isD1Storage || isUpstashStorage}
-          className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-            isD1Storage || isUpstashStorage
-              ? 'opacity-50 cursor-not-allowed'
-              : ''
-          }`}
+          className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
         />
       </div>
 
       {/* 站点公告 */}
       <div>
-        <label
-          className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${
-            isD1Storage || isUpstashStorage ? 'opacity-50' : ''
-          }`}
-        >
+        <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
           站点公告
-          {isD1Storage && (
-            <span className='ml-2 text-xs text-gray-500 dark:text-gray-400'>
-              (D1 环境下请通过环境变量修改)
-            </span>
-          )}
-          {isUpstashStorage && (
-            <span className='ml-2 text-xs text-gray-500 dark:text-gray-400'>
-              (Upstash 环境下请通过环境变量修改)
-            </span>
-          )}
         </label>
         <textarea
           value={siteSettings.Announcement}
           onChange={(e) =>
-            !isD1Storage &&
-            !isUpstashStorage &&
             setSiteSettings((prev) => ({
               ...prev,
               Announcement: e.target.value,
             }))
           }
-          disabled={isD1Storage || isUpstashStorage}
           rows={3}
-          className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-            isD1Storage || isUpstashStorage
-              ? 'opacity-50 cursor-not-allowed'
-              : ''
-          }`}
+          className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
         />
       </div>
 
@@ -1527,43 +1458,45 @@ const SiteConfigComponent = ({ config }: { config: AdminConfig | null }) => {
         />
       </div>
 
+      {/* 最大同时在线设备数 */}
+      <div>
+        <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+          最大同时在线设备数（单账号）
+        </label>
+        <input
+          type='number'
+          min={0}
+          max={50}
+          value={siteSettings.MaxDevice}
+          onChange={(e) =>
+            setSiteSettings((prev) => ({
+              ...prev,
+              MaxDevice: Number(e.target.value),
+            }))
+          }
+          className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+        />
+        <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
+          0 表示不限制；超出会踢出最早登录的设备（下次请求需要重新登录）。
+        </p>
+      </div>
+
       {/* 图片代理 */}
       <div>
-        <label
-          className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${
-            isD1Storage || isUpstashStorage ? 'opacity-50' : ''
-          }`}
-        >
+        <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
           图片代理前缀
-          {isD1Storage && (
-            <span className='ml-2 text-xs text-gray-500 dark:text-gray-400'>
-              (D1 环境下请通过环境变量修改)
-            </span>
-          )}
-          {isUpstashStorage && (
-            <span className='ml-2 text-xs text-gray-500 dark:text-gray-400'>
-              (Upstash 环境下请通过环境变量修改)
-            </span>
-          )}
         </label>
         <input
           type='text'
           placeholder='例如: https://imageproxy.example.com/?url='
           value={siteSettings.ImageProxy}
           onChange={(e) =>
-            !isD1Storage &&
-            !isUpstashStorage &&
             setSiteSettings((prev) => ({
               ...prev,
               ImageProxy: e.target.value,
             }))
           }
-          disabled={isD1Storage || isUpstashStorage}
-          className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-            isD1Storage || isUpstashStorage
-              ? 'opacity-50 cursor-not-allowed'
-              : ''
-          }`}
+          className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
         />
         <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
           用于代理图片访问，解决跨域或访问限制问题。留空则不使用代理。
@@ -1572,41 +1505,20 @@ const SiteConfigComponent = ({ config }: { config: AdminConfig | null }) => {
 
       {/* 豆瓣代理设置 */}
       <div>
-        <label
-          className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${
-            isD1Storage || isUpstashStorage ? 'opacity-50' : ''
-          }`}
-        >
+        <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
           豆瓣代理地址
-          {isD1Storage && (
-            <span className='ml-2 text-xs text-gray-500 dark:text-gray-400'>
-              (D1 环境下请通过环境变量修改)
-            </span>
-          )}
-          {isUpstashStorage && (
-            <span className='ml-2 text-xs text-gray-500 dark:text-gray-400'>
-              (Upstash 环境下请通过环境变量修改)
-            </span>
-          )}
         </label>
         <input
           type='text'
           placeholder='例如: https://proxy.example.com/fetch?url='
           value={siteSettings.DoubanProxy}
           onChange={(e) =>
-            !isD1Storage &&
-            !isUpstashStorage &&
             setSiteSettings((prev) => ({
               ...prev,
               DoubanProxy: e.target.value,
             }))
           }
-          disabled={isD1Storage || isUpstashStorage}
-          className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-            isD1Storage || isUpstashStorage
-              ? 'opacity-50 cursor-not-allowed'
-              : ''
-          }`}
+          className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
         />
         <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
           用于代理豆瓣数据访问，解决跨域或访问限制问题。留空则使用服务端API。
@@ -1616,42 +1528,21 @@ const SiteConfigComponent = ({ config }: { config: AdminConfig | null }) => {
       {/* 禁用黄色过滤器 */}
       <div>
         <div className='flex items-center justify-between'>
-          <label
-            className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${
-              isD1Storage || isUpstashStorage ? 'opacity-50' : ''
-            }`}
-          >
+          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
             禁用黄色过滤器
-            {isD1Storage && (
-              <span className='ml-2 text-xs text-gray-500 dark:text-gray-400'>
-                (D1 环境下请通过环境变量修改)
-              </span>
-            )}
-            {isUpstashStorage && (
-              <span className='ml-2 text-xs text-gray-500 dark:text-gray-400'>
-                (Upstash 环境下请通过环境变量修改)
-              </span>
-            )}
           </label>
           <button
             type='button'
             onClick={() =>
-              !isD1Storage &&
-              !isUpstashStorage &&
               setSiteSettings((prev) => ({
                 ...prev,
                 DisableYellowFilter: !prev.DisableYellowFilter,
               }))
             }
-            disabled={isD1Storage || isUpstashStorage}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
               siteSettings.DisableYellowFilter
                 ? 'bg-green-600'
                 : 'bg-gray-200 dark:bg-gray-700'
-            } ${
-              isD1Storage || isUpstashStorage
-                ? 'opacity-50 cursor-not-allowed'
-                : ''
             }`}
           >
             <span
@@ -1686,6 +1577,264 @@ const SiteConfigComponent = ({ config }: { config: AdminConfig | null }) => {
   );
 };
 
+const UserHistoryPanel = ({
+  config,
+  role,
+}: {
+  config: AdminConfig | null;
+  role: 'owner' | 'admin' | null;
+}) => {
+  const [selectedUser, setSelectedUser] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<{
+    user: string;
+    playRecords: any[];
+    searchHistory: string[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (!config) return;
+    const users = config.UserConfig.Users.filter((u) => {
+      if (role === 'owner') return true;
+      return u.role !== 'owner';
+    })
+      .map((u) => u.username)
+      .filter(Boolean);
+    if (users.length && !selectedUser) {
+      setSelectedUser(users[0]);
+    }
+  }, [config, selectedUser, role]);
+
+  const canPickUser = (u: { username: string; role: string }) => {
+    if (role === 'owner') return true;
+    return u.role !== 'owner';
+  };
+
+  const handleQuery = async () => {
+    if (!selectedUser) return;
+    try {
+      setLoading(true);
+      const resp = await fetch(
+        `/api/admin/history?username=${encodeURIComponent(
+          selectedUser
+        )}&limit=200`,
+        { cache: 'no-store' }
+      );
+      if (!resp.ok) {
+        const d = await resp.json().catch(() => ({}));
+        throw new Error(d.error || `查询失败: ${resp.status}`);
+      }
+      const d = await resp.json();
+      setData(d);
+    } catch (e) {
+      showError(e instanceof Error ? e.message : '查询失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!config) {
+    return (
+      <div className='text-center text-gray-500 dark:text-gray-400'>
+        加载中...
+      </div>
+    );
+  }
+
+  const users = config.UserConfig.Users.filter(canPickUser);
+
+  return (
+    <div className='space-y-4'>
+      <div className='flex flex-col sm:flex-row gap-3 items-start sm:items-end'>
+        <div className='w-full sm:max-w-sm'>
+          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+            选择用户
+          </label>
+          <select
+            value={selectedUser}
+            onChange={(e) => setSelectedUser(e.target.value)}
+            className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+          >
+            {users.map((u) => (
+              <option key={u.username} value={u.username}>
+                {u.username} ({u.role}
+                {u.banned ? ', banned' : ''})
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={handleQuery}
+          disabled={!selectedUser || loading}
+          className={`w-full sm:w-auto px-4 py-2 ${
+            loading
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-green-600 hover:bg-green-700'
+          } text-white rounded-lg transition-colors`}
+        >
+          {loading ? '查询中…' : '查询'}
+        </button>
+      </div>
+
+      {data && (
+        <div className='space-y-6'>
+          <div>
+            <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+              搜索记录
+            </h4>
+            {data.searchHistory?.length ? (
+              <div className='flex flex-wrap gap-2'>
+                {data.searchHistory.map((kw) => (
+                  <span
+                    key={kw}
+                    className='px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-xs'
+                  >
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className='text-sm text-gray-500 dark:text-gray-400'>
+                暂无
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+              播放记录（最近 200 条）
+            </h4>
+            {data.playRecords?.length ? (
+              <div className='border border-gray-200 dark:border-gray-700 rounded-lg max-h-[28rem] overflow-y-auto overflow-x-auto'>
+                <table className='min-w-full divide-y divide-gray-200 dark:divide-gray-700'>
+                  <thead className='bg-gray-50 dark:bg-gray-900'>
+                    <tr>
+                      <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                        标题
+                      </th>
+                      <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                        集数
+                      </th>
+                      <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                        来源
+                      </th>
+                      <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                        保存时间
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
+                    {data.playRecords.map((r) => (
+                      <tr
+                        key={r.key}
+                        className='hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors'
+                      >
+                        <td className='px-4 py-3 text-sm text-gray-900 dark:text-gray-100'>
+                          <div className='flex items-center gap-3 min-w-[18rem]'>
+                            {r.cover ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={r.cover}
+                                alt={r.title}
+                                className='w-10 h-14 object-cover rounded'
+                              />
+                            ) : null}
+                            <div className='min-w-0'>
+                              <div className='font-medium truncate'>
+                                {r.title}
+                              </div>
+                              <div className='text-xs text-gray-500 dark:text-gray-400 truncate'>
+                                {r.year || ''}{' '}
+                                {r.search_title ? `· ${r.search_title}` : ''}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className='px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap'>
+                          {r.index}/{r.total_episodes}
+                        </td>
+                        <td className='px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap'>
+                          {r.source_name}
+                        </td>
+                        <td className='px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap'>
+                          {r.save_time
+                            ? new Date(r.save_time).toLocaleString()
+                            : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className='text-sm text-gray-500 dark:text-gray-400'>
+                暂无
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const MaintenancePanel = ({ onDone }: { onDone?: () => void }) => {
+  const [working, setWorking] = useState(false);
+
+  const callMaintenance = async (action: string) => {
+    const { isConfirmed } = await Swal.fire({
+      title: '确认执行',
+      text: '该操作将清理全员播放记录与搜索记录，且不可恢复，是否继续？',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+    });
+    if (!isConfirmed) return;
+
+    try {
+      setWorking(true);
+      const resp = await fetch('/api/admin/maintenance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (!resp.ok) {
+        const d = await resp.json().catch(() => ({}));
+        throw new Error(d.error || `操作失败: ${resp.status}`);
+      }
+      const d = await resp.json();
+      showSuccess(
+        `清理完成：用户 ${d.users}，播放记录 ${d.clearedPlayRecords}，搜索记录(用户) ${d.clearedSearchHistoryUsers}`
+      );
+      onDone?.();
+    } catch (e) {
+      showError(e instanceof Error ? e.message : '操作失败');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  return (
+    <div className='space-y-3'>
+      <button
+        onClick={() => callMaintenance('clearAllHistory')}
+        disabled={working}
+        className={`w-full sm:w-auto px-4 py-2 ${
+          working
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'bg-red-600 hover:bg-red-700'
+        } text-white rounded-lg transition-colors`}
+      >
+        {working ? '执行中…' : '一键清理：全员搜索/播放记录'}
+      </button>
+      <p className='text-xs text-gray-500 dark:text-gray-400'>
+        该操作不会影响用户账号、收藏夹、跳过片头片尾设置。
+      </p>
+    </div>
+  );
+};
+
 function AdminPageClient() {
   const [config, setConfig] = useState<AdminConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1696,6 +1845,8 @@ function AdminPageClient() {
     videoSource: false,
     siteConfig: false,
     categoryConfig: false,
+    userHistory: false,
+    maintenance: false,
   });
 
   // 获取管理员配置
@@ -1867,6 +2018,38 @@ function AdminPageClient() {
             >
               <CategoryConfig config={config} refreshConfig={fetchConfig} />
             </CollapsibleTab>
+
+            {/* 用户历史标签 */}
+            <CollapsibleTab
+              title='用户历史'
+              icon={
+                <History
+                  size={20}
+                  className='text-gray-600 dark:text-gray-400'
+                />
+              }
+              isExpanded={expandedTabs.userHistory}
+              onToggle={() => toggleTab('userHistory')}
+            >
+              <UserHistoryPanel config={config} role={role} />
+            </CollapsibleTab>
+
+            {/* 维护工具（仅站长） */}
+            {role === 'owner' && (
+              <CollapsibleTab
+                title='维护工具'
+                icon={
+                  <Trash2
+                    size={20}
+                    className='text-gray-600 dark:text-gray-400'
+                  />
+                }
+                isExpanded={expandedTabs.maintenance}
+                onToggle={() => toggleTab('maintenance')}
+              >
+                <MaintenancePanel />
+              </CollapsibleTab>
+            )}
           </div>
         </div>
       </div>

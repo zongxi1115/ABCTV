@@ -4,6 +4,7 @@ export interface AdminConfig {
     Announcement: string;
     SearchDownstreamMaxPage: number;
     SiteInterfaceCacheTime: number;
+    MaxDevice: number;
     ImageProxy: string;
     DoubanProxy: string;
     DisableYellowFilter: boolean;

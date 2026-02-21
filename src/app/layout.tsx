@@ -18,12 +18,14 @@ const inter = Inter({ subsets: ['latin'] });
 // 动态生成 metadata，支持配置更新后的标题变化
 export async function generateMetadata(): Promise<Metadata> {
   let siteName = process.env.SITE_NAME || 'MoonTV';
-  if (
-    process.env.NEXT_PUBLIC_STORAGE_TYPE !== 'd1' &&
-    process.env.NEXT_PUBLIC_STORAGE_TYPE !== 'upstash'
-  ) {
-    const config = await getConfig();
-    siteName = config.SiteConfig.SiteName;
+  const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
+  if (storageType !== 'localstorage') {
+    try {
+      const config = await getConfig();
+      siteName = config.SiteConfig.SiteName;
+    } catch {
+      // ignore and fallback to env
+    }
   }
 
   return {
@@ -54,6 +56,7 @@ export default async function RootLayout({
   let imageProxy = process.env.NEXT_PUBLIC_IMAGE_PROXY || '';
   let doubanProxy = process.env.NEXT_PUBLIC_DOUBAN_PROXY || '';
   const doubanVideoProxy = process.env.DOUBAN_VIDEO_PROXY || '';
+  let maxDevice = Number(process.env.MAX_DEVICE || 0) || 0;
   let disableYellowFilter =
     process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true';
   let customCategories =
@@ -62,30 +65,34 @@ export default async function RootLayout({
       type: category.type,
       query: category.query,
     })) || ([] as Array<{ name: string; type: 'movie' | 'tv'; query: string }>);
-  if (
-    process.env.NEXT_PUBLIC_STORAGE_TYPE !== 'd1' &&
-    process.env.NEXT_PUBLIC_STORAGE_TYPE !== 'upstash'
-  ) {
-    const config = await getConfig();
-    siteName = config.SiteConfig.SiteName;
-    announcement = config.SiteConfig.Announcement;
-    enableRegister = config.UserConfig.AllowRegister;
-    imageProxy = config.SiteConfig.ImageProxy;
-    doubanProxy = config.SiteConfig.DoubanProxy;
-    disableYellowFilter = config.SiteConfig.DisableYellowFilter;
-    customCategories = config.CustomCategories.filter(
-      (category) => !category.disabled
-    ).map((category) => ({
-      name: category.name || '',
-      type: category.type,
-      query: category.query,
-    }));
+  const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
+  if (storageType !== 'localstorage') {
+    try {
+      const config = await getConfig();
+      siteName = config.SiteConfig.SiteName;
+      announcement = config.SiteConfig.Announcement;
+      enableRegister = config.UserConfig.AllowRegister;
+      imageProxy = config.SiteConfig.ImageProxy;
+      doubanProxy = config.SiteConfig.DoubanProxy;
+      maxDevice = Number((config.SiteConfig as any).MaxDevice || 0) || 0;
+      disableYellowFilter = config.SiteConfig.DisableYellowFilter;
+      customCategories = config.CustomCategories.filter(
+        (category) => !category.disabled
+      ).map((category) => ({
+        name: category.name || '',
+        type: category.type,
+        query: category.query,
+      }));
+    } catch {
+      // ignore and fallback to env/runtime config
+    }
   }
 
   // 将运行时配置注入到全局 window 对象，供客户端在运行时读取
   const runtimeConfig = {
     STORAGE_TYPE: process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage',
     ENABLE_REGISTER: enableRegister,
+    MAX_DEVICE: maxDevice,
     IMAGE_PROXY: imageProxy,
     DOUBAN_PROXY: doubanProxy,
     DOUBAN_VIDEO_PROXY: doubanVideoProxy,

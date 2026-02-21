@@ -250,6 +250,7 @@ async function initConfig() {
             SearchDownstreamMaxPage:
               Number(process.env.NEXT_PUBLIC_SEARCH_MAX_PAGE) || 5,
             SiteInterfaceCacheTime: fileConfig.cache_time || 7200,
+            MaxDevice: Number(process.env.MAX_DEVICE || 0) || 0,
             ImageProxy: process.env.NEXT_PUBLIC_IMAGE_PROXY || '',
             DoubanProxy: process.env.NEXT_PUBLIC_DOUBAN_PROXY || '',
             DisableYellowFilter:
@@ -300,6 +301,7 @@ async function initConfig() {
         SearchDownstreamMaxPage:
           Number(process.env.NEXT_PUBLIC_SEARCH_MAX_PAGE) || 5,
         SiteInterfaceCacheTime: fileConfig.cache_time || 7200,
+        MaxDevice: Number(process.env.MAX_DEVICE || 0) || 0,
         ImageProxy: process.env.NEXT_PUBLIC_IMAGE_PROXY || '',
         DoubanProxy: process.env.NEXT_PUBLIC_DOUBAN_PROXY || '',
         DisableYellowFilter:
@@ -346,20 +348,66 @@ export async function getConfig(): Promise<AdminConfig> {
     if (!adminConfig.CustomCategories) {
       adminConfig.CustomCategories = [];
     }
+    // 确保 SiteConfig / UserConfig 被初始化（兼容老数据）
+    if (!adminConfig.SiteConfig) {
+      (adminConfig as any).SiteConfig = {
+        SiteName: '',
+        Announcement: '',
+        SearchDownstreamMaxPage:
+          Number(process.env.NEXT_PUBLIC_SEARCH_MAX_PAGE) || 5,
+        SiteInterfaceCacheTime: 7200,
+        MaxDevice: 0,
+        ImageProxy: '',
+        DoubanProxy: '',
+        DisableYellowFilter: false,
+      };
+    }
+    if (!adminConfig.UserConfig) {
+      (adminConfig as any).UserConfig = { AllowRegister: false, Users: [] };
+    }
+    if (!Array.isArray(adminConfig.UserConfig.Users)) {
+      (adminConfig.UserConfig as any).Users = [];
+    }
 
-    // 合并一些环境变量配置
-    adminConfig.SiteConfig.SiteName = process.env.SITE_NAME || 'MoonTV';
-    adminConfig.SiteConfig.Announcement =
+    // 环境变量仅作为兜底默认值（避免 serverless 环境下覆盖已存储配置，导致后台修改无效）
+    const envSiteName = process.env.SITE_NAME || 'MoonTV';
+    const envAnnouncement =
       process.env.ANNOUNCEMENT ||
       '本网站仅提供影视信息搜索服务，所有内容均来自第三方网站。本站不存储任何视频资源，不对任何内容的准确性、合法性、完整性负责。';
-    adminConfig.UserConfig.AllowRegister =
-      process.env.NEXT_PUBLIC_ENABLE_REGISTER === 'true';
-    adminConfig.SiteConfig.ImageProxy =
-      process.env.NEXT_PUBLIC_IMAGE_PROXY || '';
-    adminConfig.SiteConfig.DoubanProxy =
-      process.env.NEXT_PUBLIC_DOUBAN_PROXY || '';
-    adminConfig.SiteConfig.DisableYellowFilter =
+    const envAllowRegister = process.env.NEXT_PUBLIC_ENABLE_REGISTER === 'true';
+    const envMaxDevice = Number(process.env.MAX_DEVICE || 0) || 0;
+    const envImageProxy = process.env.NEXT_PUBLIC_IMAGE_PROXY || '';
+    const envDoubanProxy = process.env.NEXT_PUBLIC_DOUBAN_PROXY || '';
+    const envDisableYellowFilter =
       process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true';
+
+    if (
+      typeof adminConfig.SiteConfig.SiteName !== 'string' ||
+      !adminConfig.SiteConfig.SiteName.trim()
+    ) {
+      adminConfig.SiteConfig.SiteName = envSiteName;
+    }
+    if (
+      typeof adminConfig.SiteConfig.Announcement !== 'string' ||
+      !adminConfig.SiteConfig.Announcement.trim()
+    ) {
+      adminConfig.SiteConfig.Announcement = envAnnouncement;
+    }
+    if (typeof adminConfig.UserConfig.AllowRegister !== 'boolean') {
+      adminConfig.UserConfig.AllowRegister = envAllowRegister;
+    }
+    if (typeof (adminConfig.SiteConfig as any).MaxDevice !== 'number') {
+      (adminConfig.SiteConfig as any).MaxDevice = envMaxDevice;
+    }
+    if (typeof adminConfig.SiteConfig.ImageProxy !== 'string') {
+      adminConfig.SiteConfig.ImageProxy = envImageProxy;
+    }
+    if (typeof adminConfig.SiteConfig.DoubanProxy !== 'string') {
+      adminConfig.SiteConfig.DoubanProxy = envDoubanProxy;
+    }
+    if (typeof adminConfig.SiteConfig.DisableYellowFilter !== 'boolean') {
+      adminConfig.SiteConfig.DisableYellowFilter = envDisableYellowFilter;
+    }
 
     // 合并文件中的源信息
     fileConfig = runtimeConfig as unknown as ConfigFileStruct;
@@ -400,15 +448,29 @@ export async function getConfig(): Promise<AdminConfig> {
     // 将 Map 转换回数组
     adminConfig.SourceConfig = Array.from(sourceConfigMap.values());
 
-    // 覆盖 CustomCategories
+    // 合并 CustomCategories：以配置文件为基线补全，但保留后台自定义项
     const customCategories = fileConfig.custom_category || [];
-    adminConfig.CustomCategories = customCategories.map((category) => ({
-      name: category.name,
-      type: category.type,
-      query: category.query,
-      from: 'config',
-      disabled: false,
-    }));
+    const customCategoriesMap = new Map(
+      adminConfig.CustomCategories.map((c) => [c.query + c.type, c])
+    );
+    customCategories.forEach((category) => {
+      customCategoriesMap.set(category.query + category.type, {
+        name: category.name,
+        type: category.type,
+        query: category.query,
+        from: 'config',
+        disabled: false,
+      });
+    });
+    const customCategoriesKeys = new Set(
+      customCategories.map((c) => c.query + c.type)
+    );
+    customCategoriesMap.forEach((category) => {
+      if (!customCategoriesKeys.has(category.query + category.type)) {
+        category.from = 'custom';
+      }
+    });
+    adminConfig.CustomCategories = Array.from(customCategoriesMap.values());
 
     const ownerUser = process.env.USERNAME || '';
     // 检查配置中的站长用户是否和 USERNAME 匹配，如果不匹配则降级为普通用户
@@ -515,6 +577,7 @@ export async function resetConfig() {
       SearchDownstreamMaxPage:
         Number(process.env.NEXT_PUBLIC_SEARCH_MAX_PAGE) || 5,
       SiteInterfaceCacheTime: fileConfig.cache_time || 7200,
+      MaxDevice: Number(process.env.MAX_DEVICE || 0) || 0,
       ImageProxy: process.env.NEXT_PUBLIC_IMAGE_PROXY || '',
       DoubanProxy: process.env.NEXT_PUBLIC_DOUBAN_PROXY || '',
       DisableYellowFilter:

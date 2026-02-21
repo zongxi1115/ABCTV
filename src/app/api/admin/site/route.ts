@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       Announcement,
       SearchDownstreamMaxPage,
       SiteInterfaceCacheTime,
+      MaxDevice,
       ImageProxy,
       DoubanProxy,
       DisableYellowFilter,
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
       Announcement: string;
       SearchDownstreamMaxPage: number;
       SiteInterfaceCacheTime: number;
+      MaxDevice: number;
       ImageProxy: string;
       DoubanProxy: string;
       DisableYellowFilter: boolean;
@@ -52,12 +54,14 @@ export async function POST(request: NextRequest) {
       typeof Announcement !== 'string' ||
       typeof SearchDownstreamMaxPage !== 'number' ||
       typeof SiteInterfaceCacheTime !== 'number' ||
+      typeof MaxDevice !== 'number' ||
       typeof ImageProxy !== 'string' ||
       typeof DoubanProxy !== 'string' ||
       typeof DisableYellowFilter !== 'boolean'
     ) {
       return NextResponse.json({ error: '参数格式错误' }, { status: 400 });
     }
+    const safeMaxDevice = Math.max(0, Math.min(Math.floor(MaxDevice), 50));
 
     const adminConfig = await getConfig();
     const storage = getStorage();
@@ -79,6 +83,7 @@ export async function POST(request: NextRequest) {
       Announcement,
       SearchDownstreamMaxPage,
       SiteInterfaceCacheTime,
+      MaxDevice: safeMaxDevice,
       ImageProxy,
       DoubanProxy,
       DisableYellowFilter,

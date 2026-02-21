@@ -198,6 +198,9 @@ export class UpstashRedisStorage implements IStorage {
     // 删除搜索历史
     await withRetry(() => this.client.del(this.shKey(userName)));
 
+    // 删除会话列表
+    await withRetry(() => this.client.del(this.sessKey(userName)));
+
     // 删除播放记录
     const playRecordPattern = `u:${userName}:pr:*`;
     const playRecordKeys = await withRetry(() =>
@@ -224,6 +227,45 @@ export class UpstashRedisStorage implements IStorage {
     if (skipConfigKeys.length > 0) {
       await withRetry(() => this.client.del(...skipConfigKeys));
     }
+  }
+
+  // ---------- 会话 / 设备限制 ----------
+  private sessKey(user: string) {
+    return `u:${user}:sess`; // u:username:sess
+  }
+
+  async createSession(
+    userName: string,
+    sessionId: string,
+    maxDevices: number
+  ): Promise<void> {
+    const sid = ensureString(sessionId).trim();
+    if (!sid) return;
+    const key = this.sessKey(userName);
+
+    // 去重 + 插入到最前
+    await withRetry(() => this.client.lrem(key, 0, sid));
+    await withRetry(() => this.client.lpush(key, sid));
+
+    const safeMax = Number(maxDevices) || 0;
+    if (safeMax > 0) {
+      await withRetry(() => this.client.ltrim(key, 0, safeMax - 1));
+    }
+  }
+
+  async validateSession(userName: string, sessionId: string): Promise<boolean> {
+    const sid = ensureString(sessionId).trim();
+    if (!sid) return false;
+    const key = this.sessKey(userName);
+    const list = await withRetry(() => this.client.lrange(key, 0, -1));
+    if (!Array.isArray(list)) return false;
+    return ensureStringArray(list).includes(sid);
+  }
+
+  async deleteSession(userName: string, sessionId: string): Promise<void> {
+    const sid = ensureString(sessionId).trim();
+    if (!sid) return;
+    await withRetry(() => this.client.lrem(this.sessKey(userName), 0, sid));
   }
 
   // ---------- 搜索历史 ----------

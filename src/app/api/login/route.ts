@@ -47,6 +47,7 @@ async function generateAuthCookie(
   username?: string,
   password?: string,
   role?: 'owner' | 'admin' | 'user',
+  sid?: string,
   includePassword = false
 ): Promise<string> {
   const authData: any = { role: role || 'user' };
@@ -58,8 +59,15 @@ async function generateAuthCookie(
 
   if (username && process.env.PASSWORD) {
     authData.username = username;
-    // 使用密码作为密钥对用户名进行签名
-    const signature = await generateSignature(username, process.env.PASSWORD);
+    if (sid) {
+      authData.sid = sid;
+    }
+    // 使用密码作为密钥对用户名+会话ID进行签名（用于多设备踢出）
+    const signPayload = sid ? `${username}:${sid}` : username;
+    const signature = await generateSignature(
+      signPayload,
+      process.env.PASSWORD
+    );
     authData.signature = signature;
     authData.timestamp = Date.now(); // 添加时间戳防重放攻击
   }
@@ -69,6 +77,11 @@ async function generateAuthCookie(
 
 export async function POST(req: NextRequest) {
   try {
+    const maxDevicesRaw = Number(process.env.MAX_DEVICE || 0);
+    let maxDevices = Number.isFinite(maxDevicesRaw)
+      ? Math.max(0, Math.min(Math.floor(maxDevicesRaw), 50))
+      : 0;
+
     // 本地 / localStorage 模式——仅校验固定密码
     if (STORAGE_TYPE === 'localstorage') {
       const envPassword = process.env.PASSWORD;
@@ -107,6 +120,7 @@ export async function POST(req: NextRequest) {
         undefined,
         password,
         'user',
+        undefined,
         true
       ); // localstorage 模式包含 password
       const expires = new Date();
@@ -138,12 +152,33 @@ export async function POST(req: NextRequest) {
       username === process.env.USERNAME &&
       password === process.env.PASSWORD
     ) {
+      try {
+        const cfg = await getConfig();
+        const v = Number((cfg as any)?.SiteConfig?.MaxDevice || 0);
+        if (Number.isFinite(v)) {
+          maxDevices = Math.max(0, Math.min(Math.floor(v), 50));
+        }
+      } catch {
+        // ignore and fallback to env
+      }
+      const sid =
+        typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : String(Date.now());
+      if (maxDevices > 0) {
+        try {
+          await db.createSession(username, sid, maxDevices);
+        } catch (e) {
+          console.error('创建会话失败:', e);
+        }
+      }
       // 验证成功，设置认证cookie
       const response = NextResponse.json({ ok: true });
       const cookieValue = await generateAuthCookie(
         username,
         password,
         'owner',
+        sid,
         false
       ); // 数据库模式不包含 password
       const expires = new Date();
@@ -167,6 +202,12 @@ export async function POST(req: NextRequest) {
     if (user && user.banned) {
       return NextResponse.json({ error: '用户被封禁' }, { status: 401 });
     }
+    {
+      const v = Number((config as any)?.SiteConfig?.MaxDevice || 0);
+      if (Number.isFinite(v)) {
+        maxDevices = Math.max(0, Math.min(Math.floor(v), 50));
+      }
+    }
 
     // 校验用户密码
     try {
@@ -180,10 +221,22 @@ export async function POST(req: NextRequest) {
 
       // 验证成功，设置认证cookie
       const response = NextResponse.json({ ok: true });
+      const sid =
+        typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : String(Date.now());
+      if (maxDevices > 0) {
+        try {
+          await db.createSession(username, sid, maxDevices);
+        } catch (e) {
+          console.error('创建会话失败:', e);
+        }
+      }
       const cookieValue = await generateAuthCookie(
         username,
         password,
         user?.role || 'user',
+        sid,
         false
       ); // 数据库模式不包含 password
       const expires = new Date();

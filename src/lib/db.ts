@@ -243,6 +243,34 @@ export class DbManager {
     }
     return {};
   }
+
+  // ---------- 会话 / 设备限制 ----------
+  async createSession(
+    userName: string,
+    sessionId: string,
+    maxDevices: number
+  ): Promise<void> {
+    if (typeof (this.storage as any).createSession === 'function') {
+      await (this.storage as any).createSession(
+        userName,
+        sessionId,
+        maxDevices
+      );
+    }
+  }
+
+  async validateSession(userName: string, sessionId: string): Promise<boolean> {
+    if (typeof (this.storage as any).validateSession === 'function') {
+      return (this.storage as any).validateSession(userName, sessionId);
+    }
+    return false;
+  }
+
+  async deleteSession(userName: string, sessionId: string): Promise<void> {
+    if (typeof (this.storage as any).deleteSession === 'function') {
+      await (this.storage as any).deleteSession(userName, sessionId);
+    }
+  }
 }
 
 // 导出默认实例
