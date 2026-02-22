@@ -2,9 +2,11 @@
 
 'use client';
 
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+
+import styles from './ring.module.css';
 
 import { checkForUpdates, CURRENT_VERSION, UpdateStatus } from '@/lib/version';
 
@@ -77,6 +79,8 @@ function LoginPageClient() {
   const [shouldAskUsername, setShouldAskUsername] = useState(false);
   const [enableRegister, setEnableRegister] = useState(false);
   const { siteName } = useSite();
+  const [showPassword, setShowPassword] = useState(false);
+  const brandName = 'zongxi TV';
 
   // 在客户端挂载后设置配置
   useEffect(() => {
@@ -150,84 +154,112 @@ function LoginPageClient() {
   };
 
   return (
-    <div className='relative min-h-screen flex items-center justify-center px-4 overflow-hidden'>
-      <div className='absolute top-4 right-4'>
+    <div className={styles.page}>
+      <div className={styles.bgGlow} />
+
+      <div className='absolute top-4 right-4 z-20'>
         <ThemeToggle />
       </div>
-      <div className='relative z-10 w-full max-w-md rounded-3xl bg-gradient-to-b from-white/90 via-white/70 to-white/40 dark:from-zinc-900/90 dark:via-zinc-900/70 dark:to-zinc-900/40 backdrop-blur-xl shadow-2xl p-10 dark:border dark:border-zinc-800'>
-        <h1 className='text-green-600 tracking-tight text-center text-3xl font-extrabold mb-8 bg-clip-text drop-shadow-sm'>
-          {siteName}
-        </h1>
-        <form onSubmit={handleSubmit} className='space-y-8'>
-          {shouldAskUsername && (
-            <div>
-              <label htmlFor='username' className='sr-only'>
-                用户名
-              </label>
-              <input
-                id='username'
-                type='text'
-                autoComplete='username'
-                className='block w-full rounded-lg border-0 py-3 px-4 text-gray-900 dark:text-gray-100 shadow-sm ring-1 ring-white/60 dark:ring-white/20 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-green-500 focus:outline-none sm:text-base bg-white/60 dark:bg-zinc-800/60 backdrop-blur'
-                placeholder='输入用户名'
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
-          )}
 
-          <div>
-            <label htmlFor='password' className='sr-only'>
-              密码
-            </label>
-            <input
-              id='password'
-              type='password'
-              autoComplete='current-password'
-              className='block w-full rounded-lg border-0 py-3 px-4 text-gray-900 dark:text-gray-100 shadow-sm ring-1 ring-white/60 dark:ring-white/20 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-green-500 focus:outline-none sm:text-base bg-white/60 dark:bg-zinc-800/60 backdrop-blur'
-              placeholder='输入访问密码'
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+      <div className={styles.ring}>
+        <i style={{ ['--clr' as any]: '#00ff0a' }} />
+        <i style={{ ['--clr' as any]: '#ff0057' }} />
+        <i style={{ ['--clr' as any]: '#fffd44' }} />
+
+        <div className={styles.login}>
+          <div className={styles.brand}>
+            <h2 className={styles.brandTitle}>登录</h2>
+            <div className={styles.brandSub}>
+              {brandName} · {siteName}
+            </div>
           </div>
 
-          {error && (
-            <p className='text-sm text-red-600 dark:text-red-400'>{error}</p>
-          )}
+          <form onSubmit={handleSubmit} className='w-full' autoComplete='on'>
+            <div className='flex flex-col gap-3'>
+              {shouldAskUsername && (
+                <div className={styles.inputBx}>
+                  <input
+                    type='text'
+                    placeholder='用户名'
+                    autoComplete='username'
+                    className={styles.input}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                  />
+                </div>
+              )}
 
-          {/* 登录 / 注册按钮 */}
-          {shouldAskUsername && enableRegister ? (
-            <div className='flex gap-4'>
-              <button
-                type='button'
-                onClick={handleRegister}
-                disabled={!password || !username || loading}
-                className='flex-1 inline-flex justify-center rounded-lg bg-blue-600 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50'
-              >
-                {loading ? '注册中...' : '注册'}
-              </button>
+              <div className={styles.inputBx}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder='访问密码'
+                  autoComplete='current-password'
+                  className={styles.input}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type='button'
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? '隐藏密码' : '显示密码'}
+                  className={styles.togglePw}
+                >
+                  {showPassword ? (
+                    <EyeOff className='w-4 h-4' />
+                  ) : (
+                    <Eye className='w-4 h-4' />
+                  )}
+                </button>
+              </div>
+
+              {error && <div className={styles.error}>{error}</div>}
+
               <button
                 type='submit'
                 disabled={
                   !password || loading || (shouldAskUsername && !username)
                 }
-                className='flex-1 inline-flex justify-center rounded-lg bg-green-600 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:from-green-600 hover:to-blue-600 disabled:cursor-not-allowed disabled:opacity-50'
+                className={styles.submit}
               >
-                {loading ? '登录中...' : '登录'}
+                {loading ? '登录中…' : '登录'}
               </button>
             </div>
-          ) : (
-            <button
-              type='submit'
-              disabled={
-                !password || loading || (shouldAskUsername && !username)
-              }
-              className='inline-flex w-full justify-center rounded-lg bg-green-600 py-3 text-base font-semibold text-white shadow-lg transition-all duration-200 hover:from-green-600 hover:to-blue-600 disabled:cursor-not-allowed disabled:opacity-50'
+          </form>
+
+          <div className={styles.links}>
+            <a
+              href='#'
+              className={styles.link}
+              onClick={(e) => {
+                e.preventDefault();
+                setError('暂不支持找回密码，请联系管理员');
+              }}
             >
-              {loading ? '登录中...' : '登录'}
-            </button>
-          )}
-        </form>
+              忘记密码
+            </a>
+
+            {shouldAskUsername && enableRegister ? (
+              <a
+                href='#'
+                className={styles.link}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleRegister();
+                }}
+              >
+                注册
+              </a>
+            ) : (
+              <a
+                href='/'
+                className={styles.link}
+                onClick={() => setError(null)}
+              >
+                返回首页
+              </a>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 版本信息显示 */}

@@ -6,8 +6,6 @@ import { db } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
-const ADMIN_CONTROL = process.env.ADMIN_CONTROL === 'true';
-
 // 读取存储类型环境变量，默认 localstorage
 const STORAGE_TYPE =
   (process.env.NEXT_PUBLIC_STORAGE_TYPE as
@@ -68,14 +66,6 @@ async function generateAuthCookie(username: string): Promise<string> {
 
 export async function POST(req: NextRequest) {
   try {
-    // ADMIN_CONTROL=true：只允许登录，禁止注册
-    if (ADMIN_CONTROL) {
-      return NextResponse.json(
-        { error: '当前仅允许登录，管理员已关闭注册' },
-        { status: 400 }
-      );
-    }
-
     // localstorage 模式下不支持注册
     if (STORAGE_TYPE === 'localstorage') {
       return NextResponse.json(
@@ -87,6 +77,13 @@ export async function POST(req: NextRequest) {
     const config = await getConfig();
     // 校验是否开放注册
     if (!config.UserConfig.AllowRegister) {
+      // 兼容旧的 ADMIN_CONTROL 环境变量提示（但不再作为硬开关）
+      if (process.env.ADMIN_CONTROL === 'true') {
+        return NextResponse.json(
+          { error: '当前未开放注册（ADMIN_CONTROL=true 或后台未开启）' },
+          { status: 400 }
+        );
+      }
       return NextResponse.json({ error: '当前未开放注册' }, { status: 400 });
     }
 

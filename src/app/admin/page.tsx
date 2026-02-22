@@ -53,6 +53,33 @@ const showSuccess = (message: string) =>
     showConfirmButton: false,
   });
 
+function generatePassword(length = 12): string {
+  const safeLength = Math.max(8, Math.min(Math.floor(length), 32));
+  const alphabet =
+    'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  const bytes = new Uint8Array(safeLength);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+}
+
+async function copyToClipboard(text: string): Promise<void> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  // fallback
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+}
+
 // 新增站点配置类型
 interface SiteConfig {
   SiteName: string;
@@ -205,6 +232,23 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
     await handleUserAction('add', newUser.username, newUser.password);
     setNewUser({ username: '', password: '' });
     setShowAddUserForm(false);
+  };
+
+  const handleGeneratePassword = () => {
+    const pwd = generatePassword(12);
+    setNewUser((prev) => ({ ...prev, password: pwd }));
+  };
+
+  const handleCopyCredentials = async () => {
+    if (!newUser.username || !newUser.password) return;
+    try {
+      await copyToClipboard(
+        `账号: ${newUser.username}\n密码: ${newUser.password}`
+      );
+      showSuccess('已复制账号密码');
+    } catch (e) {
+      showError(e instanceof Error ? e.message : '复制失败');
+    }
   };
 
   const handleChangePassword = async () => {
@@ -377,6 +421,21 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                 }
                 className='flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
               />
+              <button
+                type='button'
+                onClick={handleGeneratePassword}
+                className='w-full sm:w-auto px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors'
+              >
+                生成密码
+              </button>
+              <button
+                type='button'
+                onClick={handleCopyCredentials}
+                disabled={!newUser.username || !newUser.password}
+                className='w-full sm:w-auto px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors'
+              >
+                复制账号密码
+              </button>
               <button
                 onClick={handleAddUser}
                 disabled={!newUser.username || !newUser.password}
