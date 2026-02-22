@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { DanmuConfig, DanmuItem, VideoState } from '@/lib/types';
 
 import { DanmuLayer } from './DanmuLayer';
-import { FastForwardOverlayIcon } from './Icons';
+import { FastForwardOverlayIcon, RewindOverlayIcon, VolumeIcon } from './Icons';
 import { PlayerControls } from './PlayerControls';
 
 function filterAdsFromM3U8(m3u8Content: string): string {
@@ -83,6 +83,33 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     type: 'intro' | 'outro';
   } | null>(null);
   const skipNotificationTimeoutRef = useRef<number | null>(null);
+  const [stutterHintVisible, setStutterHintVisible] = useState(false);
+  const stutterHintTimeoutRef = useRef<number | null>(null);
+  const stutterAtRef = useRef<number[]>([]);
+  const [gestureOverlay, setGestureOverlay] = useState<
+    | {
+        type: 'seek';
+        direction: 'forward' | 'backward';
+        targetTime: number;
+        duration: number;
+      }
+    | {
+        type: 'volume';
+        volume: number;
+        muted: boolean;
+      }
+    | null
+  >(null);
+  const gestureOverlayTimeoutRef = useRef<number | null>(null);
+  const gestureRef = useRef<{
+    startX: number;
+    startY: number;
+    startTime: number;
+    startVideoTime: number;
+    startVolume: number;
+    mode: 'pending' | 'seek' | 'volume';
+    lastSeekTarget?: number;
+  } | null>(null);
   // 每集片头/片尾是否已触发过跳过（换集时需要重置）
   const hasSkippedIntroRef = useRef<boolean>(false);
   const hasSkippedOutroRef = useRef<boolean>(false);
@@ -393,7 +420,27 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }));
     const onRateChange = () =>
       setState((prev) => ({ ...prev, playbackRate: video.playbackRate }));
-    const onWaiting = () => setState((prev) => ({ ...prev, loading: true }));
+    const onWaiting = () => {
+      setState((prev) => ({ ...prev, loading: true }));
+
+      const now = Date.now();
+      const windowMs = 45_000;
+      stutterAtRef.current = stutterAtRef.current.filter(
+        (t) => now - t < windowMs
+      );
+      stutterAtRef.current.push(now);
+
+      if (stutterAtRef.current.length >= 3) {
+        setStutterHintVisible(true);
+        if (stutterHintTimeoutRef.current) {
+          window.clearTimeout(stutterHintTimeoutRef.current);
+        }
+        stutterHintTimeoutRef.current = window.setTimeout(() => {
+          setStutterHintVisible(false);
+        }, 4500);
+        stutterAtRef.current = [];
+      }
+    };
     const onCanPlay = () => setState((prev) => ({ ...prev, loading: false }));
     const onEnded = () => {
       // 视频播放结束，自动播放下一集
@@ -440,6 +487,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         clearTimeout(skipNotificationTimeoutRef.current);
       if (nextEpisodeNotificationTimeoutRef.current)
         clearTimeout(nextEpisodeNotificationTimeoutRef.current);
+      if (stutterHintTimeoutRef.current)
+        clearTimeout(stutterHintTimeoutRef.current);
     };
   }, [
     skipConfig,
@@ -456,6 +505,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () => {
       if (nextEpisodeNotificationTimeoutRef.current) {
         clearTimeout(nextEpisodeNotificationTimeoutRef.current);
+      }
+      if (gestureOverlayTimeoutRef.current) {
+        clearTimeout(gestureOverlayTimeoutRef.current);
+      }
+      if (stutterHintTimeoutRef.current) {
+        clearTimeout(stutterHintTimeoutRef.current);
       }
     };
   }, []);
@@ -727,6 +782,26 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  const clearGestureOverlayLater = () => {
+    if (gestureOverlayTimeoutRef.current) {
+      window.clearTimeout(gestureOverlayTimeoutRef.current);
+      gestureOverlayTimeoutRef.current = null;
+    }
+    gestureOverlayTimeoutRef.current = window.setTimeout(() => {
+      setGestureOverlay(null);
+    }, 800);
+  };
+
+  const formatTime = (seconds: number) => {
+    if (!isFinite(seconds) || seconds < 0) return '00:00';
+    const date = new Date(seconds * 1000);
+    const hh = date.getUTCHours();
+    const mm = date.getUTCMinutes().toString().padStart(2, '0');
+    const ss = date.getUTCSeconds().toString().padStart(2, '0');
+    if (hh) return `${hh}:${mm}:${ss}`;
+    return `${Number(mm)}:${ss}`.padStart(4, '0');
+  };
+
   return (
     <div
       ref={containerRef}
@@ -743,11 +818,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     >
       <video
         ref={videoRef}
-        className='w-full h-full object-contain cursor-pointer'
+        className='w-full h-full object-contain cursor-pointer touch-none'
         onContextMenu={(e) => e.preventDefault()}
         onPointerDown={(e) => {
           if (e.pointerType !== 'touch') return;
           pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
+          gestureRef.current = {
+            startX: e.clientX,
+            startY: e.clientY,
+            startTime: Date.now(),
+            startVideoTime: videoRef.current?.currentTime ?? 0,
+            startVolume: videoRef.current?.volume ?? state.volume,
+            mode: 'pending',
+          };
           clearTouchHold();
           touchHoldTimeoutRef.current = window.setTimeout(() => {
             beginSpeeding();
@@ -762,12 +845,65 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           if (dx > 10 || dy > 10) {
             clearTouchHold();
           }
+
+          if (isLongPressActiveRef.current) return;
+          const g = gestureRef.current;
+          const video = videoRef.current;
+          const container = containerRef.current;
+          if (!g || !video || !container || !state.duration) return;
+
+          const rect = container.getBoundingClientRect();
+          const deltaX = e.clientX - g.startX;
+          const deltaY = e.clientY - g.startY;
+          const adx = Math.abs(deltaX);
+          const ady = Math.abs(deltaY);
+
+          const lockThreshold = 14;
+          if (g.mode === 'pending') {
+            if (adx < lockThreshold && ady < lockThreshold) return;
+
+            // Volume: vertical swipe on right side
+            const fromRight = g.startX - rect.left > rect.width * 0.65;
+            if (fromRight && ady > adx) {
+              g.mode = 'volume';
+            } else {
+              g.mode = 'seek';
+            }
+          }
+
+          if (g.mode === 'seek') {
+            const maxDelta = Math.min(90, Math.max(20, state.duration * 0.12));
+            const deltaSeconds = (deltaX / rect.width) * maxDelta;
+            const target = Math.max(
+              0,
+              Math.min(state.duration, g.startVideoTime + deltaSeconds)
+            );
+            g.lastSeekTarget = target;
+            setGestureOverlay({
+              type: 'seek',
+              direction: deltaSeconds >= 0 ? 'forward' : 'backward',
+              targetTime: target,
+              duration: state.duration,
+            });
+          } else if (g.mode === 'volume') {
+            const sensitivity = 1.25;
+            const deltaVol = (-deltaY / rect.height) * sensitivity;
+            const next = Math.max(0, Math.min(1, g.startVolume + deltaVol));
+            changeVolume(next);
+            setGestureOverlay({
+              type: 'volume',
+              volume: next,
+              muted: next === 0,
+            });
+          }
         }}
         onPointerCancel={(e) => {
           if (e.pointerType !== 'touch') return;
           clearTouchHold();
           endSpeeding();
           pointerDownPosRef.current = null;
+          gestureRef.current = null;
+          clearGestureOverlayLater();
         }}
         onPointerUp={(e) => {
           // Touch: single tap toggles controls; double tap toggles play/pause; long press = 3x while holding
@@ -777,6 +913,18 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             if (isLongPressActiveRef.current) {
               endSpeeding();
               pointerDownPosRef.current = null;
+              gestureRef.current = null;
+              return;
+            }
+
+            const g = gestureRef.current;
+            if (g && g.mode !== 'pending') {
+              if (g.mode === 'seek' && typeof g.lastSeekTarget === 'number') {
+                seek(g.lastSeekTarget);
+              }
+              gestureRef.current = null;
+              pointerDownPosRef.current = null;
+              clearGestureOverlayLater();
               return;
             }
 
@@ -798,6 +946,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             }
 
             pointerDownPosRef.current = null;
+            gestureRef.current = null;
             return;
           }
 
@@ -902,6 +1051,74 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 <FastForwardOverlayIcon className='w-5 h-5 fill-current text-green-400' />
               </motion.div>
               <span className='font-medium text-sm'>3.0x 倍速播放中</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Stutter Hint */}
+      <AnimatePresence>
+        {stutterHintVisible && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.25 }}
+            className='absolute bottom-28 left-1/2 -translate-x-1/2 z-40 pointer-events-none'
+          >
+            <div className='bg-black/55 backdrop-blur-2xl text-white px-5 py-3 rounded-2xl border border-white/15 shadow-2xl text-sm font-medium whitespace-nowrap'>
+              播放有点卡顿，建议尝试切换线路/换源
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Gesture Overlay (Mobile) */}
+      <AnimatePresence>
+        {gestureOverlay && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
+            className='absolute inset-0 z-40 flex items-center justify-center pointer-events-none sm:hidden'
+          >
+            <div className='bg-black/45 backdrop-blur-2xl border border-white/15 rounded-2xl px-6 py-4 shadow-2xl text-white min-w-[220px]'>
+              {gestureOverlay.type === 'seek' ? (
+                <div className='flex items-center gap-4'>
+                  <div className='w-10 h-10 rounded-xl bg-white/10 border border-white/10 grid place-items-center'>
+                    {gestureOverlay.direction === 'forward' ? (
+                      <FastForwardOverlayIcon className='w-6 h-6 text-green-400 fill-current' />
+                    ) : (
+                      <RewindOverlayIcon className='w-6 h-6 text-green-400 fill-current' />
+                    )}
+                  </div>
+                  <div className='flex-1'>
+                    <div className='text-sm font-semibold'>
+                      {gestureOverlay.direction === 'forward' ? '快进' : '快退'}
+                    </div>
+                    <div className='text-xs text-white/80 tabular-nums mt-1'>
+                      {formatTime(gestureOverlay.targetTime)} /{' '}
+                      {formatTime(gestureOverlay.duration)}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className='flex items-center gap-4'>
+                  <div className='w-10 h-10 rounded-xl bg-white/10 border border-white/10 grid place-items-center'>
+                    <VolumeIcon
+                      level={gestureOverlay.muted ? 0 : gestureOverlay.volume}
+                      className='w-6 h-6 text-green-400'
+                    />
+                  </div>
+                  <div className='flex-1'>
+                    <div className='text-sm font-semibold'>音量</div>
+                    <div className='text-xs text-white/80 tabular-nums mt-1'>
+                      {Math.round(gestureOverlay.volume * 100)}%
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -1012,7 +1229,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       >
         <h1 className='text-white/90 font-medium text-lg drop-shadow-md tracking-tight'>
           {title}
-          {currentEpisode !== undefined && totalEpisodes
+          {currentEpisode !== undefined && totalEpisodes && totalEpisodes > 1
             ? ` · 第 ${currentEpisode + 1} 集`
             : ''}
         </h1>

@@ -1,0 +1,284 @@
+.container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+/* 毛玻璃卡片 */
+.card {
+  width: 100%;
+  aspect-ratio: 1/1;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:global(.dark) .card {
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.cardTitle {
+  position: absolute;
+  bottom: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  transition: color 0.4s ease;
+}
+
+:global(.dark) .cardTitle {
+  color: #94a3b8;
+}
+
+/* SVG 基础设置 */
+.svg {
+  width: 80px;
+  height: 80px;
+  overflow: visible;
+}
+
+.lineArt {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  stroke: #94a3b8;
+}
+
+/* 状态颜色控制 */
+.card.active .lineArt {
+  stroke: #3b82f6;
+} /* blue-500 */
+.card.success .lineArt {
+  stroke: #22c55e;
+} /* green-500 */
+
+.card.active .cardTitle {
+  color: #3b82f6;
+}
+.card.success .cardTitle {
+  color: #22c55e;
+}
+
+/* ================= Part 1: 全网资源搜索 ================= */
+.magGlass {
+  transform-origin: 45px 45px;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.radarWave {
+  opacity: 0;
+  stroke-width: 2;
+}
+.checkMark {
+  stroke-dasharray: 50;
+  stroke-dashoffset: 50;
+  transition: stroke-dashoffset 0.6s ease 0.2s, stroke 0.6s;
+}
+
+.card.active .magGlass {
+  animation: magShake 1s ease-in-out infinite alternate;
+}
+.card.active .radarWave {
+  animation: radarPulse 1.5s linear infinite;
+}
+.card.active .radarWave:nth-child(2) {
+  animation-delay: 0.5s;
+}
+.card.active .radarWave:nth-child(3) {
+  animation-delay: 1s;
+}
+
+.card.success .magGlass {
+  transform: scale(1.1);
+}
+.card.success .checkMark {
+  stroke-dashoffset: 0;
+}
+
+@keyframes magShake {
+  0% {
+    transform: rotate(-15deg);
+  }
+  100% {
+    transform: rotate(15deg);
+  }
+}
+@keyframes radarPulse {
+  0% {
+    r: 5;
+    opacity: 1;
+  }
+  100% {
+    r: 20;
+    opacity: 0;
+  }
+}
+
+/* ================= Part 2: 线路智能优选 ================= */
+.waveGroup {
+  clip-path: url(#wave-clip);
+}
+.wave {
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card.active .wave1 {
+  animation: waveMove 1.2s linear infinite;
+}
+.card.active .wave2 {
+  animation: waveMove 1.8s linear infinite reverse;
+}
+.card.active .wave3 {
+  animation: waveMove 2.4s linear infinite;
+}
+
+.card.success .wave1 {
+  stroke-width: 6;
+  stroke: #22c55e;
+}
+.card.success .wave2,
+.card.success .wave3 {
+  opacity: 0.2;
+  stroke-width: 2;
+  animation-play-state: paused;
+}
+
+@keyframes waveMove {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-60px);
+  }
+}
+
+/* ================= Part 3: 获取视频详情 ================= */
+.skeleton {
+  transform-origin: center;
+  transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+.realContent {
+  transform: scale(0);
+  transform-origin: center;
+  transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.2s;
+}
+
+.card.active .skeleton {
+  animation: shimmer 1s ease-in-out infinite alternate;
+}
+
+.card.success .skeleton {
+  transform: scale(0);
+  animation: none;
+}
+.card.success .realContent {
+  transform: scale(1);
+}
+
+@keyframes shimmer {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+/* ================= Part 4: 初始化播放器 ================= */
+.playerRing {
+  transform-origin: 50px 50px;
+  transition: stroke 0.6s, opacity 0.4s;
+}
+.playerRingClosed {
+  opacity: 0;
+  transform-origin: 50px 50px;
+  transition: opacity 0.4s;
+}
+.playTriangle {
+  transform-origin: 55px 50px;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.playerRect {
+  fill: none;
+  stroke-width: 4;
+  rx: 8;
+  x: 50;
+  y: 50;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card.active .playerRing {
+  animation: spin 1s linear infinite;
+}
+
+.card.success .playerRing {
+  opacity: 0;
+  animation: none;
+}
+.card.success .playerRingClosed {
+  opacity: 1;
+  stroke: #22c55e;
+}
+.card.success .playTriangle {
+  animation: bounce 0.6s cubic-bezier(0.28, 0.84, 0.42, 1);
+  fill: #22c55e;
+  stroke-width: 0;
+}
+
+/* 展开为 16:9 边框 */
+.card.success .playerRect {
+  x: 2;
+  y: 23;
+  width: 96;
+  height: 54;
+  opacity: 1;
+  stroke: #22c55e;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+@keyframes bounce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 600px) {
+  .container {
+    gap: 12px;
+  }
+  .card {
+    border-radius: 16px;
+  }
+  .svg {
+    width: 60px;
+    height: 60px;
+  }
+}

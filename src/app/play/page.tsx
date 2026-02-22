@@ -5,17 +5,11 @@
 // import Artplayer from 'artplayer';
 import { AnimatePresence, motion, Variants } from 'framer-motion';
 import Hls from 'hls.js';
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Heart,
-  Layers,
-  Layout,
-  Loader2,
-  Maximize,
-} from 'lucide-react';
+import { ArrowLeft, Heart, Layers, Layout, Maximize } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
+
+import styles from './loading.module.css';
 
 import {
   deleteFavorite,
@@ -83,69 +77,125 @@ const Badge = ({
   </span>
 );
 
-const ChecklistItem = ({
+const LoadingCard = ({
   status,
   label,
+  type,
 }: {
   status: 'waiting' | 'loading' | 'done';
   label: string;
+  type: 1 | 2 | 3 | 4;
 }) => {
+  const statusClass =
+    status === 'loading'
+      ? styles.active
+      : status === 'done'
+      ? styles.success
+      : styles.idle;
+
   return (
     <motion.div
-      className='flex items-center gap-4 py-3'
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
+      className={`${styles.card} ${statusClass}`}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: type * 0.1 }}
     >
-      <div className='relative flex items-center justify-center w-6 h-6 shrink-0'>
-        <AnimatePresence mode='popLayout'>
-          {status === 'done' && (
-            <motion.div
-              key='done'
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            >
-              <CheckCircle2 size={24} className='text-green-500' />
-            </motion.div>
-          )}
-          {status === 'loading' && (
-            <motion.div
-              key='loading'
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-            >
-              <Loader2 size={24} className='text-green-500 animate-spin' />
-            </motion.div>
-          )}
-          {status === 'waiting' && (
-            <motion.div
-              key='waiting'
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className='w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-700'
-            />
-          )}
-        </AnimatePresence>
-      </div>
-
-      <div
-        className={`flex-1 transition-all duration-300 ${
-          status === 'waiting'
-            ? 'text-slate-500'
-            : 'text-slate-700 dark:text-slate-200'
-        }`}
-      >
-        <span
-          className={`text-lg font-medium transition-all duration-500 decoration-slate-500/50 ${
-            status === 'done' ? 'line-through decoration-2 opacity-50' : ''
-          }`}
-        >
-          {label}
-        </span>
-      </div>
+      <svg className={styles.svg} viewBox='0 0 100 100'>
+        {type === 1 && (
+          <>
+            <g className={styles.lineArt}>
+              <circle
+                className={styles.radarWave}
+                cx='45'
+                cy='45'
+                r='5'
+              ></circle>
+              <circle
+                className={styles.radarWave}
+                cx='45'
+                cy='45'
+                r='5'
+              ></circle>
+              <circle
+                className={styles.radarWave}
+                cx='45'
+                cy='45'
+                r='5'
+              ></circle>
+            </g>
+            <g className={`${styles.lineArt} ${styles.magGlass}`}>
+              <circle cx='45' cy='45' r='22'></circle>
+              <line x1='60' y1='60' x2='80' y2='80'></line>
+            </g>
+            <path
+              className={`${styles.lineArt} ${styles.checkMark}`}
+              d='M35 45 L42 52 L57 35'
+            ></path>
+          </>
+        )}
+        {type === 2 && (
+          <>
+            <defs>
+              <clipPath id='wave-clip'>
+                <rect x='10' y='0' width='80' height='100'></rect>
+              </clipPath>
+            </defs>
+            <g className={`${styles.lineArt} ${styles.waveGroup}`}>
+              <path
+                className={`${styles.wave} ${styles.wave1}`}
+                d='M -50 35 Q -35 25, -20 35 T 10 35 T 40 35 T 70 35 T 100 35 T 130 35'
+              ></path>
+              <path
+                className={`${styles.wave} ${styles.wave2}`}
+                d='M -50 50 Q -35 40, -20 50 T 10 50 T 40 50 T 70 50 T 100 50 T 130 50'
+              ></path>
+              <path
+                className={`${styles.wave} ${styles.wave3}`}
+                d='M -50 65 Q -35 55, -20 65 T 10 65 T 40 65 T 70 65 T 100 65 T 130 65'
+              ></path>
+            </g>
+          </>
+        )}
+        {type === 3 && (
+          <>
+            <g className={`${styles.lineArt} ${styles.skeleton}`}>
+              <circle cx='35' cy='50' r='14'></circle>
+              <rect x='58' y='38' width='28' height='8' rx='4'></rect>
+              <rect x='58' y='54' width='16' height='8' rx='4'></rect>
+            </g>
+            <g className={`${styles.lineArt} ${styles.realContent}`}>
+              <circle cx='35' cy='50' r='14'></circle>
+              <polygon
+                points='31,44 42,50 31,56'
+                fill='currentColor'
+                strokeWidth='2'
+              ></polygon>
+              <line x1='58' y1='42' x2='86' y2='42' strokeWidth='6'></line>
+              <line x1='58' y1='58' x2='74' y2='58' strokeWidth='6'></line>
+            </g>
+          </>
+        )}
+        {type === 4 && (
+          <>
+            <rect className={styles.playerRect}></rect>
+            <path
+              className={`${styles.lineArt} ${styles.playerRing}`}
+              d='M50 20 A 30 30 0 1 1 25 33'
+            ></path>
+            <circle
+              className={`${styles.lineArt} ${styles.playerRingClosed}`}
+              cx='50'
+              cy='50'
+              r='30'
+            ></circle>
+            <polygon
+              className={`${styles.lineArt} ${styles.playTriangle}`}
+              points='43,36 63,50 43,64'
+            ></polygon>
+          </>
+        )}
+      </svg>
+      <div className={styles.cardTitle}>{label}</div>
     </motion.div>
   );
 };
@@ -1415,38 +1465,40 @@ function PlayPageClient() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className='w-full max-w-md bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-2xl border border-black/10 dark:border-white/10 overflow-hidden shadow-2xl p-8'
+            className='w-full max-w-lg bg-transparent rounded-2xl overflow-hidden p-4 lg:p-8'
           >
-            <div className='mb-8 flex items-center gap-3'>
+            <div className='mb-10 flex flex-col items-center justify-center gap-4 text-center'>
               <div className='relative'>
-                <div className='w-3 h-3 bg-green-500 rounded-full animate-ping absolute opacity-75' />
-                <div className='w-3 h-3 bg-green-500 rounded-full relative' />
+                <div className='w-4 h-4 bg-blue-500 rounded-full animate-ping absolute opacity-75' />
+                <div className='w-4 h-4 bg-blue-500 rounded-full relative' />
               </div>
-              <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
-                正在准备播放资源
-              </h2>
+              <div>
+                <h2 className='text-2xl font-bold text-gray-900 dark:text-white'>
+                  正在准备播放资源
+                </h2>
+                <p className='text-sm text-slate-500 dark:text-slate-400 mt-2'>
+                  智能引擎正在为您调度最佳线路
+                </p>
+              </div>
             </div>
 
-            <div className='flex flex-col gap-2'>
-              <ChecklistItem
-                key='s1'
+            <div className={styles.container}>
+              <LoadingCard
                 label='全网资源搜索'
                 status={getStatus('searching')}
+                type={1}
               />
-              {optimizationEnabled && (
-                <ChecklistItem
-                  key='s2'
-                  label='线路智能优选'
-                  status={getStatus('preferring')}
-                />
-              )}
-              <ChecklistItem
-                key='s3'
+              <LoadingCard
+                label={optimizationEnabled ? '线路智能优选' : '已跳过优选'}
+                status={getStatus('preferring')}
+                type={2}
+              />
+              <LoadingCard
                 label='获取视频详情'
                 status={getStatus('fetching')}
+                type={3}
               />
-              <ChecklistItem
-                key='s4'
+              <LoadingCard
                 label='初始化播放器'
                 status={
                   getStatus('ready') === 'loading' ||
@@ -1454,6 +1506,7 @@ function PlayPageClient() {
                     ? 'loading'
                     : 'waiting'
                 }
+                type={4}
               />
             </div>
           </motion.div>

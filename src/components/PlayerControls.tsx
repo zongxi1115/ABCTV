@@ -192,8 +192,17 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   const [showDanmuSettings, setShowDanmuSettings] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
   const danmuPanelRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 639px)');
+    const onChange = (e: MediaQueryListEvent) => setIsSmallScreen(e.matches);
+    setIsSmallScreen(mql.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
 
   // Close danmu panel when clicking outside
   useEffect(() => {
@@ -201,6 +210,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       const target = event.target as HTMLElement;
       if (
         showDanmuSettings &&
+        !isSmallScreen &&
         danmuPanelRef.current &&
         !danmuPanelRef.current.contains(target) &&
         !target.closest('#danmu-btn')
@@ -218,7 +228,116 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showDanmuSettings, showMoreMenu]);
+  }, [showDanmuSettings, showMoreMenu, isSmallScreen]);
+
+  const DanmuPanelBody = () => (
+    <>
+      {/* Header */}
+      <div className='px-2 pb-1 text-xs font-semibold text-white/40 uppercase tracking-widest'>
+        弹幕设置
+      </div>
+
+      {/* Toggle */}
+      <div
+        className='flex items-center justify-between px-2 py-2 rounded-xl cursor-pointer hover:bg-white/10 transition-colors'
+        onClick={() =>
+          onDanmuConfigChange({
+            ...danmuConfig,
+            enabled: !danmuConfig.enabled,
+          })
+        }
+      >
+        <span className='text-sm text-white/90 font-medium'>弹幕开关</span>
+        <div
+          className={`w-11 h-6 p-0.5 rounded-full relative transition-colors duration-300 ${
+            danmuConfig.enabled ? 'bg-green-500' : 'bg-white/20'
+          }`}
+        >
+          <motion.div
+            initial={false}
+            animate={{ x: danmuConfig.enabled ? 20 : 0 }}
+            className='w-5 h-5 bg-white rounded-full shadow-md'
+            transition={{
+              type: 'spring',
+              stiffness: 420,
+              damping: 30,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Font Size */}
+      <div className='px-2 py-2 space-y-2.5'>
+        <div className='flex justify-between items-center'>
+          <span className='text-sm text-white/90 font-medium'>字体大小</span>
+          <span className='text-xs text-green-400 font-semibold tabular-nums'>
+            {danmuConfig.fontSize}px
+          </span>
+        </div>
+        <DanmuSlider
+          ariaLabel='弹幕字号'
+          min={16}
+          max={36}
+          step={1}
+          value={danmuConfig.fontSize}
+          onChange={(v) => onDanmuConfigChange({ ...danmuConfig, fontSize: v })}
+        />
+        <div className='flex justify-between text-[10px] text-white/25 -mt-1'>
+          <span>小</span>
+          <span>大</span>
+        </div>
+      </div>
+
+      {/* Speed */}
+      <div className='px-2 py-2 space-y-2.5'>
+        <div className='flex justify-between items-center'>
+          <span className='text-sm text-white/90 font-medium'>弹幕速度</span>
+          <span className='text-xs text-green-400 font-semibold tabular-nums'>
+            {danmuConfig.speedFactor.toFixed(1)}x
+          </span>
+        </div>
+        <DanmuSlider
+          ariaLabel='弹幕速度'
+          min={0.5}
+          max={3}
+          step={0.1}
+          value={danmuConfig.speedFactor}
+          onChange={(v) =>
+            onDanmuConfigChange({ ...danmuConfig, speedFactor: v })
+          }
+        />
+        <div className='flex justify-between text-[10px] text-white/25 -mt-1'>
+          <span>慢</span>
+          <span>快</span>
+        </div>
+      </div>
+
+      {/* Area */}
+      <div className='px-2 py-2 space-y-1.5'>
+        <span className='text-sm text-white/90 font-medium'>显示区域</span>
+        <div className='flex gap-1.5 mt-1'>
+          {([0.25, 0.5, 0.75, 1.0] as const).map((pct) => (
+            <button
+              key={pct}
+              onClick={() =>
+                onDanmuConfigChange({
+                  ...danmuConfig,
+                  areaPercent: pct,
+                })
+              }
+              className={`flex-1 text-xs py-1 rounded-lg font-medium transition-colors ${
+                danmuConfig.areaPercent === pct
+                  ? 'bg-green-500 text-white'
+                  : 'bg-white/10 text-white/60 hover:bg-white/20'
+              }`}
+            >
+              {Math.round(pct * 100)}%
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <AnimatePresence>
@@ -250,129 +369,52 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
           {/* Danmu Settings Popup */}
           <AnimatePresence>
             {showDanmuSettings && (
-              <motion.div
-                ref={danmuPanelRef}
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                className='absolute bottom-20 right-16 w-64 bg-[#1a1a1a]/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl z-30 p-3 space-y-1 font-sans'
-              >
-                {/* Header */}
-                <div className='px-2 pb-1 text-xs font-semibold text-white/40 uppercase tracking-widest'>
-                  弹幕设置
-                </div>
-
-                {/* Toggle */}
-                <div
-                  className='flex items-center justify-between px-2 py-2 rounded-xl cursor-pointer hover:bg-white/10 transition-colors'
-                  onClick={() =>
-                    onDanmuConfigChange({
-                      ...danmuConfig,
-                      enabled: !danmuConfig.enabled,
-                    })
-                  }
+              <>
+                {/* Mobile Modal */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className='fixed inset-0 z-[700] sm:hidden flex items-end justify-center p-4 bg-black/50 backdrop-blur-xl'
+                  onClick={() => setShowDanmuSettings(false)}
                 >
-                  <span className='text-sm text-white/90 font-medium'>
-                    弹幕开关
-                  </span>
-                  <div
-                    className={`w-11 h-6 p-0.5 rounded-full relative transition-colors duration-300 ${
-                      danmuConfig.enabled ? 'bg-green-500' : 'bg-white/20'
-                    }`}
+                  <motion.div
+                    initial={{ opacity: 0, y: 18, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 18, scale: 0.98 }}
+                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                    className='w-full max-w-md bg-[#1a1a1a]/90 border border-white/10 rounded-2xl shadow-2xl overflow-hidden font-sans'
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <motion.div
-                      initial={false}
-                      animate={{ x: danmuConfig.enabled ? 20 : 0 }}
-                      className='w-5 h-5 bg-white rounded-full shadow-md'
-                      transition={{
-                        type: 'spring',
-                        stiffness: 420,
-                        damping: 30,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Font Size */}
-                <div className='px-2 py-2 space-y-2.5'>
-                  <div className='flex justify-between items-center'>
-                    <span className='text-sm text-white/90 font-medium'>
-                      字体大小
-                    </span>
-                    <span className='text-xs text-green-400 font-semibold tabular-nums'>
-                      {danmuConfig.fontSize}px
-                    </span>
-                  </div>
-                  <DanmuSlider
-                    ariaLabel='弹幕字号'
-                    min={16}
-                    max={36}
-                    step={1}
-                    value={danmuConfig.fontSize}
-                    onChange={(v) =>
-                      onDanmuConfigChange({ ...danmuConfig, fontSize: v })
-                    }
-                  />
-                  <div className='flex justify-between text-[10px] text-white/25 -mt-1'>
-                    <span>小</span>
-                    <span>大</span>
-                  </div>
-                </div>
-
-                {/* Speed */}
-                <div className='px-2 py-2 space-y-2.5'>
-                  <div className='flex justify-between items-center'>
-                    <span className='text-sm text-white/90 font-medium'>
-                      弹幕速度
-                    </span>
-                    <span className='text-xs text-green-400 font-semibold tabular-nums'>
-                      {danmuConfig.speedFactor.toFixed(1)}x
-                    </span>
-                  </div>
-                  <DanmuSlider
-                    ariaLabel='弹幕速度'
-                    min={0.5}
-                    max={3}
-                    step={0.1}
-                    value={danmuConfig.speedFactor}
-                    onChange={(v) =>
-                      onDanmuConfigChange({ ...danmuConfig, speedFactor: v })
-                    }
-                  />
-                  <div className='flex justify-between text-[10px] text-white/25 -mt-1'>
-                    <span>慢</span>
-                    <span>快</span>
-                  </div>
-                </div>
-
-                {/* Area */}
-                <div className='px-2 py-2 space-y-1.5'>
-                  <span className='text-sm text-white/90 font-medium'>
-                    显示区域
-                  </span>
-                  <div className='flex gap-1.5 mt-1'>
-                    {([0.25, 0.5, 0.75, 1.0] as const).map((pct) => (
+                    <div className='flex items-center justify-between px-4 py-3 border-b border-white/10'>
+                      <div className='text-white/90 font-semibold'>
+                        弹幕设置
+                      </div>
                       <button
-                        key={pct}
-                        onClick={() =>
-                          onDanmuConfigChange({
-                            ...danmuConfig,
-                            areaPercent: pct,
-                          })
-                        }
-                        className={`flex-1 text-xs py-1 rounded-lg font-medium transition-colors ${
-                          danmuConfig.areaPercent === pct
-                            ? 'bg-green-500 text-white'
-                            : 'bg-white/10 text-white/60 hover:bg-white/20'
-                        }`}
+                        onClick={() => setShowDanmuSettings(false)}
+                        className='text-white/60 hover:text-white transition-colors text-sm'
                       >
-                        {Math.round(pct * 100)}%
+                        关闭
                       </button>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
+                    </div>
+                    <div className='p-3 max-h-[70vh] overflow-y-auto no-scrollbar space-y-1'>
+                      <DanmuPanelBody />
+                    </div>
+                  </motion.div>
+                </motion.div>
+
+                {/* Desktop Popover */}
+                <motion.div
+                  ref={danmuPanelRef}
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  className='hidden sm:block absolute bottom-20 right-16 w-64 bg-[#1a1a1a]/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl z-30 p-3 space-y-1 font-sans'
+                >
+                  <DanmuPanelBody />
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
 

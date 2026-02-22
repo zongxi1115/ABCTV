@@ -75,7 +75,9 @@ function LoginPageClient() {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [submitState, setSubmitState] = useState<
+    'idle' | 'loggingIn' | 'registering' | 'redirecting'
+  >('idle');
   const [shouldAskUsername, setShouldAskUsername] = useState(false);
   const [enableRegister, setEnableRegister] = useState(false);
   const { siteName } = useSite();
@@ -99,8 +101,9 @@ function LoginPageClient() {
 
     if (!password || (shouldAskUsername && !username)) return;
 
+    setSubmitState('loggingIn');
+    let finished = false;
     try {
-      setLoading(true);
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,8 +114,11 @@ function LoginPageClient() {
       });
 
       if (res.ok) {
+        setSubmitState('redirecting');
         const redirect = searchParams.get('redirect') || '/';
         router.replace(redirect);
+        finished = true;
+        return;
       } else if (res.status === 401) {
         setError('密码错误');
       } else {
@@ -122,7 +128,7 @@ function LoginPageClient() {
     } catch (error) {
       setError('网络错误，请稍后重试');
     } finally {
-      setLoading(false);
+      if (!finished) setSubmitState('idle');
     }
   };
 
@@ -131,8 +137,9 @@ function LoginPageClient() {
     setError(null);
     if (!password || !username) return;
 
+    setSubmitState('registering');
+    let finished = false;
     try {
-      setLoading(true);
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -140,8 +147,11 @@ function LoginPageClient() {
       });
 
       if (res.ok) {
+        setSubmitState('redirecting');
         const redirect = searchParams.get('redirect') || '/';
         router.replace(redirect);
+        finished = true;
+        return;
       } else {
         const data = await res.json().catch(() => ({}));
         setError(data.error ?? '服务器错误');
@@ -149,9 +159,17 @@ function LoginPageClient() {
     } catch (error) {
       setError('网络错误，请稍后重试');
     } finally {
-      setLoading(false);
+      if (!finished) setSubmitState('idle');
     }
   };
+
+  const submitLabel =
+    submitState === 'loggingIn'
+      ? '正在登录…'
+      : submitState === 'redirecting'
+      ? '正在跳转…'
+      : '登录';
+  const isBusy = submitState !== 'idle';
 
   return (
     <div className={styles.page}>
@@ -185,6 +203,7 @@ function LoginPageClient() {
                     className={styles.input}
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    disabled={isBusy}
                   />
                 </div>
               )}
@@ -197,12 +216,14 @@ function LoginPageClient() {
                   className={styles.input}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isBusy}
                 />
                 <button
                   type='button'
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? '隐藏密码' : '显示密码'}
                   className={styles.togglePw}
+                  disabled={isBusy}
                 >
                   {showPassword ? (
                     <EyeOff className='w-4 h-4' />
@@ -217,11 +238,11 @@ function LoginPageClient() {
               <button
                 type='submit'
                 disabled={
-                  !password || loading || (shouldAskUsername && !username)
+                  !password || isBusy || (shouldAskUsername && !username)
                 }
                 className={styles.submit}
               >
-                {loading ? '登录中…' : '登录'}
+                {submitLabel}
               </button>
             </div>
           </form>
@@ -230,8 +251,10 @@ function LoginPageClient() {
             <a
               href='#'
               className={styles.link}
+              aria-disabled={isBusy}
               onClick={(e) => {
                 e.preventDefault();
+                if (isBusy) return;
                 setError('暂不支持找回密码，请联系管理员');
               }}
             >
@@ -242,12 +265,18 @@ function LoginPageClient() {
               <a
                 href='#'
                 className={styles.link}
+                aria-disabled={isBusy}
                 onClick={(e) => {
                   e.preventDefault();
+                  if (isBusy) return;
                   handleRegister();
                 }}
               >
-                注册
+                {submitState === 'registering'
+                  ? '注册中…'
+                  : submitState === 'redirecting'
+                  ? '正在跳转…'
+                  : '注册'}
               </a>
             ) : (
               <a
