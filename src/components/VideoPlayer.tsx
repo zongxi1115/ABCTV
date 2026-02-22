@@ -8,6 +8,22 @@ import { DanmuLayer } from './DanmuLayer';
 import { FastForwardOverlayIcon } from './Icons';
 import { PlayerControls } from './PlayerControls';
 
+function filterAdsFromM3U8(m3u8Content: string): string {
+  if (!m3u8Content) return '';
+
+  const lines = m3u8Content.split('\n');
+  const filteredLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.includes('#EXT-X-DISCONTINUITY')) {
+      filteredLines.push(line);
+    }
+  }
+
+  return filteredLines.join('\n');
+}
+
 interface VideoPlayerProps {
   src: string;
   className?: string;
@@ -53,6 +69,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const speedRef = useRef(1);
   const keyHoldTimeoutRef = useRef<number | null>(null);
   const isKeyDownRef = useRef(false);
+  const touchHoldTimeoutRef = useRef<number | null>(null);
+  const isLongPressActiveRef = useRef(false);
+  const pointerDownPosRef = useRef<{ x: number; y: number } | null>(null);
+  const lastTapAtRef = useRef<number>(0);
   const [danmuConfig, setDanmuConfig] = useState<DanmuConfig>({
     enabled: true,
     fontSize: 22,
@@ -140,6 +160,68 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     if (src.includes('.m3u8')) {
       if (Hls.isSupported()) {
+        const enableM3u8AdFilter =
+          typeof window === 'undefined'
+            ? true
+            : localStorage.getItem('enableM3U8AdFilter') !== 'false';
+
+        type HlsLoaderContext = { type?: string } & Record<string, unknown>;
+        type HlsLoaderResponse = { data?: unknown } & Record<string, unknown>;
+        type HlsLoaderCallbacks = {
+          onSuccess: (
+            response: HlsLoaderResponse,
+            stats: unknown,
+            context: HlsLoaderContext,
+            networkDetails?: unknown
+          ) => void;
+        } & Record<string, unknown>;
+        type HlsBaseLoaderCtor = new (config: unknown) => {
+          load: (
+            context: HlsLoaderContext,
+            config: unknown,
+            callbacks: HlsLoaderCallbacks
+          ) => void;
+        };
+
+        const BaseLoader = Hls.DefaultConfig
+          .loader as unknown as HlsBaseLoaderCtor;
+
+        class _FilteredHlsJsLoader extends BaseLoader {
+          constructor(config: unknown) {
+            super(config);
+            const load = this.load.bind(this);
+            this.load = function (
+              context: HlsLoaderContext,
+              config: unknown,
+              callbacks: HlsLoaderCallbacks
+            ) {
+              if (
+                enableM3u8AdFilter &&
+                context?.type &&
+                (context.type === 'manifest' || context.type === 'level')
+              ) {
+                const onSuccess = callbacks.onSuccess;
+                callbacks.onSuccess = function (
+                  response: HlsLoaderResponse,
+                  stats: unknown,
+                  context: HlsLoaderContext,
+                  networkDetails?: unknown
+                ) {
+                  try {
+                    if (typeof response?.data === 'string') {
+                      response.data = filterAdsFromM3U8(response.data);
+                    }
+                  } catch {
+                    // ignore filter errors, fallback to original response
+                  }
+                  return onSuccess(response, stats, context, networkDetails);
+                };
+              }
+              load(context, config, callbacks);
+            };
+          }
+        }
+
         hls = new Hls({
           capLevelToPlayerSize: true,
           autoStartLoad: true,
@@ -149,6 +231,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           maxBufferSize: 60 * 1000 * 1000,
           // 允许跳转到任意位置
           startFragPrefetch: true,
+          ...(enableM3u8AdFilter
+            ? {
+                loader:
+                  _FilteredHlsJsLoader as unknown as typeof Hls.DefaultConfig.loader,
+              }
+            : {}),
         });
         hls.loadSource(src);
         hls.attachMedia(video);
@@ -510,6 +598,25 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  const beginSpeeding = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (isLongPressActiveRef.current) return;
+    speedRef.current = video.playbackRate;
+    video.playbackRate = 3.0;
+    isLongPressActiveRef.current = true;
+    setIsSpeeding(true);
+  }, []);
+
+  const endSpeeding = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (!isLongPressActiveRef.current) return;
+    video.playbackRate = speedRef.current;
+    isLongPressActiveRef.current = false;
+    setIsSpeeding(false);
+  }, []);
+
   const seek = (time: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = time;
@@ -613,6 +720,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }));
   }, [skipConfig]);
 
+  const clearTouchHold = () => {
+    if (touchHoldTimeoutRef.current) {
+      window.clearTimeout(touchHoldTimeoutRef.current);
+      touchHoldTimeoutRef.current = null;
+    }
+  };
+
   return (
     <div
       ref={containerRef}
@@ -630,7 +744,66 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       <video
         ref={videoRef}
         className='w-full h-full object-contain cursor-pointer'
-        onClick={togglePlay}
+        onContextMenu={(e) => e.preventDefault()}
+        onPointerDown={(e) => {
+          if (e.pointerType !== 'touch') return;
+          pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
+          clearTouchHold();
+          touchHoldTimeoutRef.current = window.setTimeout(() => {
+            beginSpeeding();
+          }, 320);
+        }}
+        onPointerMove={(e) => {
+          if (e.pointerType !== 'touch') return;
+          const start = pointerDownPosRef.current;
+          if (!start) return;
+          const dx = Math.abs(e.clientX - start.x);
+          const dy = Math.abs(e.clientY - start.y);
+          if (dx > 10 || dy > 10) {
+            clearTouchHold();
+          }
+        }}
+        onPointerCancel={(e) => {
+          if (e.pointerType !== 'touch') return;
+          clearTouchHold();
+          endSpeeding();
+          pointerDownPosRef.current = null;
+        }}
+        onPointerUp={(e) => {
+          // Touch: single tap toggles controls; double tap toggles play/pause; long press = 3x while holding
+          if (e.pointerType === 'touch') {
+            clearTouchHold();
+
+            if (isLongPressActiveRef.current) {
+              endSpeeding();
+              pointerDownPosRef.current = null;
+              return;
+            }
+
+            const now = Date.now();
+            const isDoubleTap = now - lastTapAtRef.current < 260;
+            lastTapAtRef.current = isDoubleTap ? 0 : now;
+
+            if (isDoubleTap) {
+              togglePlay();
+              resetControlsTimeout();
+            } else {
+              if (!state.playing) {
+                togglePlay();
+                resetControlsTimeout();
+              } else {
+                setShowControls((v) => !v);
+                if (!showControls) resetControlsTimeout();
+              }
+            }
+
+            pointerDownPosRef.current = null;
+            return;
+          }
+
+          // Mouse/pen: keep click-to-play behavior
+          togglePlay();
+        }}
         playsInline
       />
 
@@ -793,10 +966,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             className='absolute inset-0 flex items-center justify-center pointer-events-none z-10'
           >
-            <div className='bg-black/30 backdrop-blur-md p-6 rounded-full border border-white/10 shadow-2xl'>
+            <div className='bg-black/30 backdrop-blur-md p-4 sm:p-6 rounded-full border border-white/10 shadow-2xl'>
               <svg
                 viewBox='0 0 24 24'
-                className='w-10 h-10 fill-white'
+                className='w-8 h-8 sm:w-10 sm:h-10 fill-white'
                 xmlns='http://www.w3.org/2000/svg'
               >
                 <path d='M8 5v14l11-7z' />
