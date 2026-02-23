@@ -6,6 +6,16 @@ import { AdminConfig } from './admin.types';
 import runtimeConfig from './runtime';
 import { IStorage } from './types';
 
+function getEnvAgentConfig(): NonNullable<AdminConfig['AgentConfig']> {
+  return {
+    Enabled: process.env.ENABLE_AGENT === 'true',
+    BaseUrl: String(process.env.AI_BASE_URL || '').trim(),
+    ApiKey: String(process.env.AI_API_KEY || '').trim(),
+    ModelName: String(process.env.AI_MODEL_NAME || '').trim(),
+    AllowSearch: process.env.AI_ALLOW_SEARCH === 'true',
+  };
+}
+
 async function ensureEnvAdminUser(
   storage: IStorage | null,
   adminConfig: AdminConfig
@@ -226,6 +236,9 @@ async function initConfig() {
           });
         }
 
+        if (!adminConfig.AgentConfig) {
+          adminConfig.AgentConfig = getEnvAgentConfig();
+        }
         await ensureEnvAdminUser(storage as any, adminConfig);
       } else {
         // 数据库中没有配置，创建新的管理员配置
@@ -256,6 +269,7 @@ async function initConfig() {
             DisableYellowFilter:
               process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true',
           },
+          AgentConfig: getEnvAgentConfig(),
           UserConfig: {
             AllowRegister: process.env.NEXT_PUBLIC_ENABLE_REGISTER === 'true',
             Users: allUsers as any,
@@ -307,6 +321,7 @@ async function initConfig() {
         DisableYellowFilter:
           process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true',
       },
+      AgentConfig: getEnvAgentConfig(),
       UserConfig: {
         AllowRegister: process.env.NEXT_PUBLIC_ENABLE_REGISTER === 'true',
         Users: [],
@@ -348,6 +363,10 @@ export async function getConfig(): Promise<AdminConfig> {
     if (!adminConfig.CustomCategories) {
       adminConfig.CustomCategories = [];
     }
+    // 确保 AgentConfig 被初始化（兼容老数据）
+    if (!adminConfig.AgentConfig) {
+      adminConfig.AgentConfig = getEnvAgentConfig();
+    }
     // 确保 SiteConfig / UserConfig 被初始化（兼容老数据）
     if (!adminConfig.SiteConfig) {
       (adminConfig as any).SiteConfig = {
@@ -380,6 +399,7 @@ export async function getConfig(): Promise<AdminConfig> {
     const envDoubanProxy = process.env.NEXT_PUBLIC_DOUBAN_PROXY || '';
     const envDisableYellowFilter =
       process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true';
+    const envAgent = getEnvAgentConfig();
 
     if (
       typeof adminConfig.SiteConfig.SiteName !== 'string' ||
@@ -407,6 +427,34 @@ export async function getConfig(): Promise<AdminConfig> {
     }
     if (typeof adminConfig.SiteConfig.DisableYellowFilter !== 'boolean') {
       adminConfig.SiteConfig.DisableYellowFilter = envDisableYellowFilter;
+    }
+    if (typeof adminConfig.AgentConfig.Enabled !== 'boolean') {
+      adminConfig.AgentConfig.Enabled = envAgent.Enabled;
+    }
+    if (typeof adminConfig.AgentConfig.AllowSearch !== 'boolean') {
+      adminConfig.AgentConfig.AllowSearch = envAgent.AllowSearch;
+    }
+    if (typeof adminConfig.AgentConfig.BaseUrl !== 'string') {
+      adminConfig.AgentConfig.BaseUrl = envAgent.BaseUrl;
+    }
+    if (typeof adminConfig.AgentConfig.ModelName !== 'string') {
+      adminConfig.AgentConfig.ModelName = envAgent.ModelName;
+    }
+    if (typeof adminConfig.AgentConfig.ApiKey !== 'string') {
+      adminConfig.AgentConfig.ApiKey = envAgent.ApiKey;
+    }
+    // 对空字符串做 env 兜底（仅在未配置时）
+    if (!adminConfig.AgentConfig.BaseUrl.trim() && envAgent.BaseUrl) {
+      adminConfig.AgentConfig.BaseUrl = envAgent.BaseUrl;
+    }
+    if (!adminConfig.AgentConfig.ModelName.trim() && envAgent.ModelName) {
+      adminConfig.AgentConfig.ModelName = envAgent.ModelName;
+    }
+    if (
+      !String(adminConfig.AgentConfig.ApiKey || '').trim() &&
+      envAgent.ApiKey
+    ) {
+      adminConfig.AgentConfig.ApiKey = envAgent.ApiKey;
     }
 
     // 合并文件中的源信息
@@ -583,6 +631,7 @@ export async function resetConfig() {
       DisableYellowFilter:
         process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true',
     },
+    AgentConfig: getEnvAgentConfig(),
     UserConfig: {
       AllowRegister: process.env.NEXT_PUBLIC_ENABLE_REGISTER === 'true',
       Users: allUsers as any,
@@ -615,6 +664,7 @@ export async function resetConfig() {
     cachedConfig = adminConfig;
   }
   cachedConfig.SiteConfig = adminConfig.SiteConfig;
+  (cachedConfig as any).AgentConfig = (adminConfig as any).AgentConfig;
   cachedConfig.UserConfig = adminConfig.UserConfig;
   cachedConfig.SourceConfig = adminConfig.SourceConfig;
   cachedConfig.CustomCategories = adminConfig.CustomCategories;

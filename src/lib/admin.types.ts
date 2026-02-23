@@ -9,6 +9,14 @@ export interface AdminConfig {
     DoubanProxy: string;
     DisableYellowFilter: boolean;
   };
+  AgentConfig?: {
+    Enabled: boolean;
+    BaseUrl: string;
+    ApiKey?: string;
+    ApiKeySet?: boolean;
+    ModelName: string;
+    AllowSearch: boolean;
+  };
   UserConfig: {
     AllowRegister: boolean;
     Users: {

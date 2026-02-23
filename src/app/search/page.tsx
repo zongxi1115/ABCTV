@@ -12,6 +12,7 @@ import {
   Play,
   RefreshCw,
   Search,
+  Sparkles,
   Star,
   X,
 } from 'lucide-react';
@@ -964,25 +965,39 @@ function SearchPageClient() {
         {/* 搜索框 */}
         <div className='mb-8 relative'>
           <form onSubmit={handleSearch} className='max-w-2xl mx-auto relative'>
-            <div className='relative'>
-              <Search className='absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-gray-500' />
-              <input
-                id='searchInput'
-                type='text'
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setShowSuggestions(true);
+            <div className='flex items-center gap-2'>
+              <div className='relative flex-1 min-w-0'>
+                <Search className='absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-gray-500' />
+                <input
+                  id='searchInput'
+                  type='text'
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => {
+                    if (suggestions.length > 0) setShowSuggestions(true);
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setShowSuggestions(false), 200);
+                  }}
+                  placeholder='搜索电影、电视剧...'
+                  className='w-full h-12 rounded-lg bg-gray-50/80 py-3 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white border border-gray-200/50 shadow-sm dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500 dark:focus:bg-gray-700 dark:border-gray-700'
+                />
+              </div>
+
+              <button
+                type='button'
+                onClick={() => {
+                  const q = searchQuery.trim();
+                  router.push(`/ai${q ? `?q=${encodeURIComponent(q)}` : ''}`);
                 }}
-                onFocus={() => {
-                  if (suggestions.length > 0) setShowSuggestions(true);
-                }}
-                onBlur={() => {
-                  setTimeout(() => setShowSuggestions(false), 200);
-                }}
-                placeholder='搜索电影、电视剧...'
-                className='w-full h-12 rounded-lg bg-gray-50/80 py-3 pl-10 pr-4 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white border border-gray-200/50 shadow-sm dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500 dark:focus:bg-gray-700 dark:border-gray-700'
-              />
+                className='h-12 shrink-0 inline-flex items-center gap-2 rounded-lg bg-green-600 px-3 text-sm font-medium text-white hover:bg-green-700 transition-colors'
+              >
+                <Sparkles className='h-4 w-4' />
+                <span className='hidden sm:inline'>AI找剧</span>
+              </button>
             </div>
 
             {/* 搜索建议下拉框 */}

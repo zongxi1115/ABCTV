@@ -59,6 +59,8 @@ export default async function RootLayout({
   let maxDevice = Number(process.env.MAX_DEVICE || 0) || 0;
   let disableYellowFilter =
     process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true';
+  let agentEnabled = process.env.ENABLE_AGENT === 'true';
+  let agentAllowSearch = process.env.AI_ALLOW_SEARCH === 'true';
   let customCategories =
     (RuntimeConfig as any).custom_category?.map((category: any) => ({
       name: 'name' in category ? category.name : '',
@@ -76,6 +78,8 @@ export default async function RootLayout({
       doubanProxy = config.SiteConfig.DoubanProxy;
       maxDevice = Number((config.SiteConfig as any).MaxDevice || 0) || 0;
       disableYellowFilter = config.SiteConfig.DisableYellowFilter;
+      agentEnabled = Boolean(config.AgentConfig?.Enabled);
+      agentAllowSearch = Boolean(config.AgentConfig?.AllowSearch);
       customCategories = config.CustomCategories.filter(
         (category) => !category.disabled
       ).map((category) => ({
@@ -98,6 +102,8 @@ export default async function RootLayout({
     DOUBAN_VIDEO_PROXY: doubanVideoProxy,
     DISABLE_YELLOW_FILTER: disableYellowFilter,
     CUSTOM_CATEGORIES: customCategories,
+    AGENT_ENABLED: agentEnabled,
+    AGENT_ALLOW_SEARCH: agentAllowSearch,
   };
 
   return (

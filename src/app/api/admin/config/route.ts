@@ -27,9 +27,16 @@ export async function GET(request: NextRequest) {
 
   try {
     const config = await getConfig();
+    const safeConfig = JSON.parse(JSON.stringify(config)) as typeof config;
+    if (safeConfig.AgentConfig) {
+      safeConfig.AgentConfig.ApiKeySet = Boolean(
+        String(config.AgentConfig?.ApiKey || '').trim()
+      );
+      safeConfig.AgentConfig.ApiKey = '';
+    }
     const result: AdminConfigResult = {
       Role: 'owner',
-      Config: config,
+      Config: safeConfig,
     };
     if (username === process.env.USERNAME) {
       result.Role = 'owner';

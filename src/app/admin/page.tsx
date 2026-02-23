@@ -27,6 +27,7 @@ import {
   FolderOpen,
   History,
   Settings,
+  Sparkles,
   Trash2,
   Users,
   Video,
@@ -1636,6 +1637,225 @@ const SiteConfigComponent = ({ config }: { config: AdminConfig | null }) => {
   );
 };
 
+type AgentConfigForm = {
+  Enabled: boolean;
+  BaseUrl: string;
+  ModelName: string;
+  AllowSearch: boolean;
+  ApiKeySet: boolean;
+  ApiKeyInput: string;
+};
+
+const AgentConfigComponent = ({
+  config,
+  refreshConfig,
+}: {
+  config: AdminConfig | null;
+  refreshConfig: () => Promise<void>;
+}) => {
+  const [form, setForm] = useState<AgentConfigForm>({
+    Enabled: false,
+    BaseUrl: '',
+    ModelName: '',
+    AllowSearch: false,
+    ApiKeySet: false,
+    ApiKeyInput: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const agent = config?.AgentConfig;
+    if (!agent) {
+      setForm((prev) => ({
+        ...prev,
+        Enabled: false,
+        BaseUrl: '',
+        ModelName: '',
+        AllowSearch: false,
+        ApiKeySet: false,
+      }));
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      Enabled: Boolean(agent.Enabled),
+      BaseUrl: agent.BaseUrl || '',
+      ModelName: agent.ModelName || '',
+      AllowSearch: Boolean(agent.AllowSearch),
+      ApiKeySet: Boolean(agent.ApiKeySet),
+      ApiKeyInput: '',
+    }));
+  }, [config]);
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const payload: any = {
+        Enabled: form.Enabled,
+        BaseUrl: form.BaseUrl,
+        ModelName: form.ModelName,
+        AllowSearch: form.AllowSearch,
+      };
+      if (form.ApiKeyInput.trim()) {
+        payload.ApiKey = form.ApiKeyInput.trim();
+      }
+
+      const resp = await fetch('/api/admin/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data.error || `保存失败: ${resp.status}`);
+      }
+
+      showSuccess('保存成功, 请刷新页面');
+      refreshConfig().catch(() => {
+        // ignore
+      });
+      setForm((prev) => ({ ...prev, ApiKeyInput: '' }));
+    } catch (err) {
+      showError(err instanceof Error ? err.message : '保存失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!config) {
+    return (
+      <div className='text-center text-gray-500 dark:text-gray-400'>
+        加载中...
+      </div>
+    );
+  }
+
+  return (
+    <div className='space-y-6'>
+      {/* 启用 */}
+      <div>
+        <div className='flex items-center justify-between'>
+          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+            启用 AI 找剧
+          </label>
+          <button
+            type='button'
+            onClick={() =>
+              setForm((prev) => ({ ...prev, Enabled: !prev.Enabled }))
+            }
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
+              form.Enabled ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                form.Enabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+        <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
+          默认关闭；开启后，搜索页会出现 “AI找剧” 入口。
+        </p>
+      </div>
+
+      {/* Base URL */}
+      <div>
+        <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+          AI_BASE_URL
+        </label>
+        <input
+          type='text'
+          placeholder='例如: https://api.openai.com 或 https://xxx/v1'
+          value={form.BaseUrl}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, BaseUrl: e.target.value }))
+          }
+          className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+        />
+      </div>
+
+      {/* Model */}
+      <div>
+        <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+          AI_MODEL_NAME
+        </label>
+        <input
+          type='text'
+          placeholder='例如: gpt-4.1-mini'
+          value={form.ModelName}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, ModelName: e.target.value }))
+          }
+          className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+        />
+      </div>
+
+      {/* API Key */}
+      <div>
+        <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+          AI_API_KEY {form.ApiKeySet ? '（已设置）' : '（未设置）'}
+        </label>
+        <input
+          type='password'
+          placeholder={form.ApiKeySet ? '已设置（留空则不修改）' : '请输入 Key'}
+          value={form.ApiKeyInput}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, ApiKeyInput: e.target.value }))
+          }
+          className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+        />
+        <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
+          出于安全考虑，后台不会回显 Key；只有在输入新值时才会更新。
+        </p>
+      </div>
+
+      {/* Allow Search */}
+      <div>
+        <div className='flex items-center justify-between'>
+          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+            AI_ALLOW_SEARCH
+          </label>
+          <button
+            type='button'
+            onClick={() =>
+              setForm((prev) => ({ ...prev, AllowSearch: !prev.AllowSearch }))
+            }
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
+              form.AllowSearch ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                form.AllowSearch ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+        <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
+          允许 AI 在回答过程中调用一次“站内搜索”工具（不是联网搜索）。
+        </p>
+      </div>
+
+      <div className='flex justify-end'>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className={`px-4 py-2 ${
+            saving
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-green-600 hover:bg-green-700'
+          } text-white rounded-lg transition-colors`}
+        >
+          {saving ? '保存中…' : '保存'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const UserHistoryPanel = ({
   config,
   role,
@@ -1903,6 +2123,7 @@ function AdminPageClient() {
     userConfig: false,
     videoSource: false,
     siteConfig: false,
+    agentConfig: false,
     categoryConfig: false,
     userHistory: false,
     maintenance: false,
@@ -2035,6 +2256,24 @@ function AdminPageClient() {
           </CollapsibleTab>
 
           <div className='space-y-4'>
+            {/* AI 找剧标签 */}
+            <CollapsibleTab
+              title='AI 找剧'
+              icon={
+                <Sparkles
+                  size={20}
+                  className='text-gray-600 dark:text-gray-400'
+                />
+              }
+              isExpanded={expandedTabs.agentConfig}
+              onToggle={() => toggleTab('agentConfig')}
+            >
+              <AgentConfigComponent
+                config={config}
+                refreshConfig={fetchConfig}
+              />
+            </CollapsibleTab>
+
             {/* 用户配置标签 */}
             <CollapsibleTab
               title='用户配置'

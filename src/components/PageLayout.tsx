@@ -1,3 +1,4 @@
+import AiEntryButton from './AiEntryButton';
 import { BackButton } from './BackButton';
 import GlobalSearchBar from './GlobalSearchBar';
 import MobileBottomNav from './MobileBottomNav';
@@ -41,6 +42,7 @@ const PageLayout = ({ children, activePath = '/' }: PageLayoutProps) => {
           {/* 桌面端顶部按钮 */}
           <div className='absolute top-2 right-4 z-20 hidden md:flex items-center gap-2'>
             <GlobalSearchBar className='w-72 max-w-[42vw]' />
+            <AiEntryButton />
             <ThemeToggle />
             <UserMenu />
           </div>
