@@ -1,10 +1,10 @@
-# MoonTV
+# ABCTV
 
 <div align="center">
-  <img src="public/logo.png" alt="LibreTV Logo" width="120">
+  <img src="public/logo.png" alt="ABCTV Logo" width="120">
 </div>
 
-> 🎬 **MoonTV** 是一个开箱即用的、跨平台的影视聚合播放器。它基于 **Next.js 14** + **Tailwind&nbsp;CSS** + **TypeScript** 构建，支持多资源搜索、在线播放、收藏同步、播放记录、本地/云端存储，让你可以随时随地畅享海量免费影视内容。
+> 🎬 **ABCTV** 是基于 [MoonTV](https://github.com/senshinya/MoonTV) 的二次开发版本，一个开箱即用的、跨平台的影视聚合播放器。它基于 **Next.js 14** + **Tailwind&nbsp;CSS** + **TypeScript** 构建，支持多资源搜索、在线播放、收藏同步、播放记录、本地/云端存储，让你可以随时随地畅享海量免费影视内容。
 
 <div align="center">
 
@@ -13,8 +13,17 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-4.x-3178c6?logo=typescript)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Docker Ready](https://img.shields.io/badge/Docker-ready-blue?logo=docker)
+![Fork of MoonTV](https://img.shields.io/badge/Fork-MoonTV-orange)
 
 </div>
+
+---
+
+## 🔀 关于本项目
+
+ABCTV 是在 [MoonTV](https://github.com/senshinya/MoonTV) 基础上的二次开发版本，在保留原项目全部功能的同时进行了定制化改造。
+
+上游项目持续更新中，建议定期同步上游变更以获取最新功能和安全修复。
 
 ---
 
@@ -131,12 +140,13 @@
 #### 1. 直接运行（最简单，localstorage）
 
 ```bash
-# 拉取预构建镜像
-docker pull ghcr.io/senshinya/moontv:latest
+# 方式一：使用本项目自行构建的镜像（推荐）
+docker build -t abctv .
+docker run -d --name abctv -p 3000:3000 --env PASSWORD=your_password abctv
 
-# 运行容器
-# -d: 后台运行  -p: 映射端口 3000 -> 3000
-docker run -d --name moontv -p 3000:3000 --env PASSWORD=your_password ghcr.io/senshinya/moontv:latest
+# 方式二：使用上游 MoonTV 预构建镜像
+docker pull ghcr.io/senshinya/moontv:latest
+docker run -d --name abctv -p 3000:3000 --env PASSWORD=your_password ghcr.io/senshinya/moontv:latest
 ```
 
 访问 `http://服务器 IP:3000` 即可。（需自行到服务器控制台放通 `3000` 端口）
@@ -149,9 +159,10 @@ docker run -d --name moontv -p 3000:3000 --env PASSWORD=your_password ghcr.io/se
 
 ```yaml
 services:
-  moontv:
-    image: ghcr.io/senshinya/moontv:latest
-    container_name: moontv
+  abctv:
+    build: .
+    # 或使用上游镜像：image: ghcr.io/senshinya/moontv:latest
+    container_name: abctv
     restart: unless-stopped
     ports:
       - '3000:3000'
@@ -166,9 +177,10 @@ services:
 
 ```yaml
 services:
-  moontv-core:
-    image: ghcr.io/senshinya/moontv:latest
-    container_name: moontv
+  abctv-core:
+    build: .
+    # 或使用上游镜像：image: ghcr.io/senshinya/moontv:latest
+    container_name: abctv
     restart: unless-stopped
     ports:
       - '3000:3000'
@@ -176,34 +188,37 @@ services:
       - USERNAME=admin
       - PASSWORD=admin_password
       - NEXT_PUBLIC_STORAGE_TYPE=redis
-      - REDIS_URL=redis://moontv-redis:6379
+      - REDIS_URL=redis://abctv-redis:6379
       - NEXT_PUBLIC_ENABLE_REGISTER=true
     networks:
-      - moontv-network
+      - abctv-network
     depends_on:
-      - moontv-redis
+      - abctv-redis
     # 如需自定义配置，可挂载文件
     # volumes:
     #   - ./config.json:/app/config.json:ro
-  moontv-redis:
+  abctv-redis:
     image: redis
-    container_name: moontv-redis
+    container_name: abctv-redis
     restart: unless-stopped
     networks:
-      - moontv-network
+      - abctv-network
     # 如需持久化
     # volumes:
     #   - ./data:/data
 networks:
-  moontv-network:
+  abctv-network:
     driver: bridge
 ```
 
-## 自动同步最近更改
+## 同步上游更新
 
-建议在 fork 的仓库中启用本仓库自带的 GitHub Actions 自动同步功能（见 `.github/workflows/sync.yml`）。
+本项目 Fork 自 [MoonTV](https://github.com/senshinya/MoonTV)，建议定期同步上游变更以获取最新功能和安全修复。
 
-如需手动同步主仓库更新，也可以使用 GitHub 官方的 [Sync fork](https://docs.github.com/cn/github/collaborating-with-issues-and-pull-requests/syncing-a-fork) 功能。
+可通过以下方式同步：
+
+- 使用 GitHub 官方的 [Sync fork](https://docs.github.com/cn/github/collaborating-with-issues-and-pull-requests/syncing-a-fork) 功能一键同步。
+- 或在仓库中启用 GitHub Actions 自动同步（若上游提供了 `.github/workflows/sync.yml`）。
 
 ## 环境变量
 
@@ -211,7 +226,7 @@ networks:
 | --------------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | USERNAME                          | 非 localstorage 部署时的管理员账号                                                                       | 任意字符串                       | （空）                                                                                                                     |
 | PASSWORD                          | 非 localstorage 部署时为管理员密码                                                                       | 任意字符串                       | （空）                                                                                                                     |
-| SITE_NAME                         | 站点名称                                                                                                 | 任意字符串                       | MoonTV                                                                                                                     |
+| SITE_NAME                         | 站点名称                                                                                                 | 任意字符串                       | ABCTV                                                                                                                      |
 | ANNOUNCEMENT                      | 站点公告                                                                                                 | 任意字符串                       | 本网站仅提供影视信息搜索服务，所有内容均来自第三方网站。本站不存储任何视频资源，不对任何内容的准确性、合法性、完整性负责。 |
 | NEXT_PUBLIC_STORAGE_TYPE          | 播放记录/收藏的存储方式                                                                                  | localstorage、redis、d1、upstash | localstorage                                                                                                               |
 | REDIS_URL                         | redis 连接 url                                                                                           | 连接 url                         | 空                                                                                                                         |
@@ -272,7 +287,7 @@ custom_category 支持的自定义分类已知如下：
 
 也可输入如 "哈利波特" 效果等同于豆瓣搜索
 
-MoonTV 支持标准的苹果 CMS V10 API 格式。
+ABCTV 支持标准的苹果 CMS V10 API 格式。
 
 修改后 **无需重新构建**，服务会在启动时读取一次。
 
@@ -323,10 +338,11 @@ MoonTV 支持标准的苹果 CMS V10 API 格式。
 
 ## License
 
-[MIT](LICENSE) © 2025 MoonTV & Contributors
+[MIT](LICENSE) © 2025 ABCTV & Contributors
 
 ## 致谢
 
+- [MoonTV](https://github.com/senshinya/MoonTV) — 本项目上游，ABCTV 基于此进行二次开发，感谢原作者的出色工作。
 - [ts-nextjs-tailwind-starter](https://github.com/theodorusclarence/ts-nextjs-tailwind-starter) — 项目最初基于该脚手架。
 - [LibreTV](https://github.com/LibreSpark/LibreTV) — 由此启发，站在巨人的肩膀上。
 - [ArtPlayer](https://github.com/zhw2590582/ArtPlayer) — 提供强大的网页视频播放器。
